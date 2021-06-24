@@ -16,7 +16,11 @@ using namespace std;
 class JWindow : 
     public Singleton<JWindow>{
 protected:
-    list<sf::Drawable *> drawables;
+    struct DebugLine{
+        sf::Vertex v[2];
+    };
+    list<DebugLine> debugDraw;
+    list<sf::Drawable*> drawables;
     RenderWindow *rwin = nullptr;
 public:
     JWindow() {
@@ -46,12 +50,26 @@ public:
         rwin->clear();
         for (auto *d : drawables)
             rwin->draw(*d);
+
+        for (DebugLine &d : debugDraw)
+            rwin->draw(d.v, 2, sf::PrimitiveType::Lines);
+        debugDraw.clear();
         rwin->display();
+    }
+
+
+    void debugLine(Vector2f pos, Vector2f end, Color c) {
+        DebugLine d;
+        d.v[0].position = pos;
+        d.v[1].position = end;
+        d.v[1].color = d.v[0].color= c;
+        debugDraw.push_back(d);
     }
 };
 #define win JWindow::instance()
 #define pushDraw(d) JWindow::instance()<<d
 #define popDraw(d) JWindow::instance()>>d
+#define drawDebug JWindow::instance().debugLine
 #endif // !_jwindow
 
 
