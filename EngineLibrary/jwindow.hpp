@@ -13,16 +13,40 @@ using namespace sf;
 using namespace std;
 
 #include "Utils.h"
+
+static CircleShape cir;
 class JWindow : 
     public Singleton<JWindow>{
 protected:
-    struct DebugLine{
-        sf::Vertex v[2];
+    struct DebugQuery {
+        virtual void draw(RenderWindow *rwin) = 0;
     };
-    list<DebugLine> debugDraw;
+    struct DebugLine : DebugQuery {
+        sf::Vertex v[2];
+        inline void draw(RenderWindow* rwin) {
+            rwin->draw(v, 2, sf::PrimitiveType::Lines);
+        }
+    };
+    struct DebugCircle : DebugQuery {
+        Color c;
+        Vector2f pos;
+        float radius;
+        inline void draw(RenderWindow *rwin) {
+            cir.setFillColor(c);
+            cir.setPosition(pos);
+            cir.setRadius(radius);
+            cir.setOrigin(radius, radius);
+            rwin->draw(cir);            
+        }
+    };
+
+
+    list<DebugQuery*> debugQueryDraw;
+
+
     list<sf::Drawable*> drawables;
     RenderWindow *rwin = nullptr;
-public:
+public: 
     JWindow() {
         rwin = new RenderWindow(sf::VideoMode(800, 600), "SFML window");
         rwin->setFramerateLimit(30);
@@ -51,25 +75,36 @@ public:
         for (auto *d : drawables)
             rwin->draw(*d);
 
-        for (DebugLine &d : debugDraw)
-            rwin->draw(d.v, 2, sf::PrimitiveType::Lines);
-        debugDraw.clear();
+        for (DebugQuery *d : debugQueryDraw) {
+            d->draw(rwin);
+            delete d;
+        }
+
+        debugQueryDraw.clear();
         rwin->display();
     }
 
 
     void debugLine(Vector2f pos, Vector2f end, Color c) {
-        DebugLine d;
-        d.v[0].position = pos;
-        d.v[1].position = end;
-        d.v[1].color = d.v[0].color= c;
-        debugDraw.push_back(d);
+        DebugLine *d = new DebugLine;
+        d->v[0].position = pos;
+        d->v[1].position = end;
+        d->v[1].color = d->v[0].color= c;
+        debugQueryDraw.push_back(d);
+    }
+    void debugCircle(Vector2f pos, float radius, Color c) {
+        DebugCircle *dc = new DebugCircle;
+        dc->pos = pos;
+        dc->c = c;
+        dc->radius = radius;
+        debugQueryDraw.push_back(dc);
     }
 };
 #define win JWindow::instance()
 #define pushDraw(d) JWindow::instance()<<d
 #define popDraw(d) JWindow::instance()>>d
-#define drawDebug JWindow::instance().debugLine
+#define drawDebugLine JWindow::instance().debugLine
+#define drawDebugCir JWindow::instance().debugCircle
 #endif // !_jwindow
 
 

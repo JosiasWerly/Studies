@@ -8,22 +8,28 @@ class Vector{
 public:
 	double x = 0, y = 0;
 
+
 	
 	constexpr Vector(){}	
-	constexpr Vector(int x, int y) : x(double(x)), y(double(y)) {}
-	constexpr Vector(double x, double y) : x(x), y(y){}
+	constexpr Vector(int x, int y) : x(double(x)), y(double(y)) {
+		
+	}
+	constexpr Vector(double x, double y) : x(x), y(y){
+	}
 	
 	inline operator sf::Vector2f() const { return { float(x), float(y) };	}
 
-
+	void sanitaze() {
+		x = ::round(x * 1000.0) / 1000.0;
+		y = ::round(y * 1000.0) / 1000.0;
+	}
 	double length() {
 		return sqrtf(powf(x, 2)+ powf(y, 2));
 	}
 	Vector normalize() {
 		Vector out = *this;
-		if (out.x < 0.00001 && out.y < 0.00001)
-			return { 1, 0 };
 		out = out / out.length();
+		sanitaze();
 		return out;
 	}
 
@@ -48,23 +54,33 @@ public:
 	}
 	
 
-	double angle() {
-		const double deg2rad = 180.f / 3.14;
-		return atan2f(y, x) *deg2rad;
+	inline double angle() {
+		const double deg2rad = 180.f / 3.1415926;
+		double out = atan2f(y, x) * deg2rad;
+		out = out <= 0 ? out + 360 : out;
+		//return atan2f(y, x) * deg2rad;
+		return out;
+		
 	}
-	void rotate(double angle) {
-		const double deg2rad = 180.f / 3.14;
-		const double theta = angle/deg2rad;
+	inline void rotate(double angle) {
+		const double deg2rad = 180.f / 3.1415926;
+		//double theta = (angle / 180.f / 3.1415926);
+		//double 
+		//	cs = cos(theta),
+		//	sn = sin(theta);
+		//double 
+		//	_x = x * cs - y * sn,
+		//	_y = x * sn + y * cs;
+		//x = _x;
+		//y = _y;
+		double d = this->angle();
+		double _alpha = this->angle() + angle;
+		_alpha /= deg2rad;
+		double l = length();
 
-		double cs = cos(theta);
-		double sn = sin(theta);
-
-
-		double 
-			_x = this->x * cs - this->y * sn,
-			_y = this->x * sn + this->y * cs;
-		x = _x;
-		y = _y;
+		x = cos(_alpha) * l;
+		y = sin(_alpha) * l;
+		sanitaze();
 	}
 	bool operator==(Vector o) const{
 		return false;
@@ -73,6 +89,9 @@ public:
 
 	Vector floor() {
 		return { int(x), int(y) };
+	}
+	Vector round() {
+		return { ::round(x), ::round(y) };
 	}
 
 	//static double rotate(angle)
@@ -95,26 +114,8 @@ public:
 		return a + ((b - a) * alpha);
 	}
 	static Vector rotate(Vector a, double angle) {
-		/*const double deg2rad = 180 / 3.14159265359;
-		double an = a.angle() / deg2rad;
-		double le = a.length();
-
-		double curAn = atan2f(a.y, a.x) + an;
-		return {
-			sinf(curAn) * le,
-			cosf(curAn) * le,
-		};*/
-		const double deg2rad = 180 / 3.14159265359;
-		const double theta = angle / deg2rad;
-		
-		double cs = cosf(theta);
-		double sn = sinf(theta);
-		
-		
-		double
-			_x = a.x * cs - a.y * sn,
-			_y = a.x * sn + a.y * cs;
-		return { _x, _y };
+		a.rotate(angle);
+		return a;
 	}
 };
 

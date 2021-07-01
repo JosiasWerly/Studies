@@ -10,7 +10,7 @@ using namespace std;
 #include "Utils.h"
 #include "jwindow.hpp"
 
-enum class eDirection { up, down, left, right };
+enum class eDirection { up , down, left, right };
 constexpr Vector vectorDir(eDirection dir) {
     switch (dir){
     case eDirection::up:    return { 0, 1 };
@@ -21,8 +21,7 @@ constexpr Vector vectorDir(eDirection dir) {
 }
 struct Node {
     Vector pos, worldPos;
-    Node *neighbours[4] = { 0 };
-
+    Node *neighbours[4] = { 0 };    
     CircleShape *c = new CircleShape;
 
     static bool hasNeighbours(Node *n) {
@@ -56,6 +55,7 @@ struct Node {
 class NavMesh{
     Vector worldSize, meshSize;
     int totalMeshSize = 0;
+    Vector spacing;
 public:
     vector<Node*> nodes;
     list<Node*> eNodes;
@@ -67,7 +67,7 @@ public:
 
     inline Node *getAtWoldPosition(Vector pos) {
         if (pos.x >= 0 && pos.y >= 0 && pos.x < worldSize.x && pos.y < worldSize.y)
-            return getAt((pos / worldSize * meshSize).floor());
+            return getAt((pos / worldSize * meshSize).round());
         return nullptr;
     }
     inline Node* getAt(Vector pos) {
@@ -83,13 +83,12 @@ public:
         this->totalMeshSize = meshSize.x * meshSize.y;
 
         
-
-        float _x = worldSize.x / meshSize.x, _y = worldSize.y / meshSize.y;
+        spacing = worldSize / meshSize;
         for (size_t y = 0; y < meshSize.y; y++){
             for (size_t x = 0; x < meshSize.x; x++) {
                 auto n = new Node;
                 n->pos = { int(x), int(y) };
-                n->worldPos = {x * _x + offset.x , y * _y + offset.y};
+                n->worldPos = {x * spacing.x + offset.x , y * spacing.y + offset.y};
                 nodes.push_back(n);
 
                 auto *_c = n->c;
@@ -152,19 +151,21 @@ public:
                 return true;
         return false;
     }
-    bool isValidPos(Vector &worldPos) {
+    Node *isValidPos(Vector &worldPos) {
         if (Node *n = getAtWoldPosition(worldPos))
-            return Node::hasNeighbours(n);
-        return false;
+            if (Node::hasNeighbours(n))
+                return n;
+        return nullptr;
     }
-    bool traceForward(Vector worldPos, Vector dir, int size) {        
-        for (size_t i = 0; i < size; i++) {
-            Vector trace = worldPos + dir * i;
+    bool traceForward(Vector worldPos, Vector dir, int size, int start = 0) {
+        bool b = false;
+        for (size_t i = start; i < size; i++) {
+            Vector trace = worldPos + dir * spacing * i;
             if (!isValidPos(trace))
-                return true;
-        }
-        drawDebug(worldPos, worldPos + dir * size, Color::Red);
-        return false;
+                b = true;
+        }        
+        //drawDebugLine(worldPos, worldPos + dir * 20, b ? Color::Red : Color::Blue);
+        return b;
     }
 
 
@@ -189,17 +190,10 @@ public:
             if (n) {
                 n->c->setOutlineColor(Color::Red);
                 n->c->setOutlineThickness(-1);
-
             }
     }
 };
 static NavMesh nav;
-
-
-
-
-
-
 
 class World{
     Sprite sptr;
@@ -218,27 +212,39 @@ public:
 };
 static World world;
 
-
-
-
-
-
-
-
-
-
-
-
 //avoidance, alignment, and coherence.
 struct Boid {
 private:
-    bool noCollision() {
-        int nColl = 0;
+    bool noCollision() {        
+        int trace = 2;
+        int newCollide = 0;
+
+        if (nav.traceForward(pos, Vector::rotate(dir, 30), trace, 1))
+            newCollide = 1;
+        else if (nav.traceForward(pos, Vector::rotate(dir, -30), trace, 1))
+            newCollide = 2;
+        
+        if (collided == 0 && newCollide != 0)
+            collided = newCollide;
+        if (collided != 0 && newCollide == 0)
+            collided = 0;
+
+        if (collided == 1) {
+            dir = Vector::rotate(dir, -1 * rand() % 20 + 1);
+        }
+        else if (collided == 2) {
+            dir = Vector::rotate(dir, rand() % 20 + 1);
+        }
+        
+        
+        return collided == 0;
+
+        /*int nColl = 0;
         int trace = 20;
-        if (nav.traceForward(pos, Vector::rotate(dir, 90), trace / 2) || nav.traceForward(pos, Vector::rotate(dir, 20), trace)) {
+        if (nav.traceForward(pos, Vector::rotate(dir, 90), trace / 2, 1) || nav.traceForward(pos, Vector::rotate(dir, 20), trace), 1) {
             nColl = 1;
         }
-        if (nav.traceForward(pos, Vector::rotate(dir, -90), trace/2) || nav.traceForward(pos, Vector::rotate(dir, -20), trace)) {
+        if (nav.traceForward(pos, Vector::rotate(dir, -90), trace/2, 1) || nav.traceForward(pos, Vector::rotate(dir, -20), trace), 1) {
             nColl = 2;
         }
         
@@ -253,7 +259,7 @@ private:
                 dir = Vector::rotate(dir, -10);
             else if (collided == 2)
                 dir = Vector::rotate(dir, 10);
-        }
+        }*/
 
         //if (nav.traceForward(pos, dir, 25))
         //    collided = 3;
@@ -270,12 +276,18 @@ private:
         return collided == 0;
     }
     CircleShape cir;
+
+    bool noCollison2() {
+        nav.traceForward(pos, dir, 2, 1);
+        return 0;
+    }
 public:
     Boid(Vector pos) {
         this->pos = pos;
 
         dir = { 1, 1 };
         speed = maxSpeed = abs(sin(rand() % 3) * (rand() % 2)) + 1;        
+        
         cir.setFillColor(Color::Red);
         cir.setRadius(rand() % 4 + 2);
         cir.setOrigin(cir.getRadius(), cir.getRadius());
@@ -293,24 +305,28 @@ public:
         for (auto b : boids) {
             float d = Vector::distance(pos, b->pos);
             if (d < distance && b->collided == 0) {
-                drawDebug(pos, b->pos, Color::Magenta);
+                drawDebugLine(pos, b->pos, Color::Magenta);
                 out.push_back(b);
             }
         }
             
     }
     void tick(list<Boid *> &boids) {
+        //dir.rotate(20);
+        dir = dir.normalize();
         list<Boid *> group;
         getClosests(boids, group);
         if (noCollision()) {
-            dir = Vector::lerp(dir, Vector::rotate(dir, rand() % 20 - 10), 0.2).normalize();
             pos = pos + dir * speed;
-            cir.setPosition(pos);
-        }        
+        }
+        cir.setPosition(pos);
+        //if (noCollision()) {
+        //    dir = Vector::lerp(dir, Vector::rotate(dir, rand() % 20 - 10), 0.2).normalize();
+        //    pos = pos + dir * speed;
+        //}        
+        //cir.setPosition(pos);
     }
 };
-
-
 class Boids {
 public:
     list<Boid*> boids;
@@ -332,17 +348,15 @@ static Boids boids;
 
 
 int main() {
-
-    srand(time(NULL));
-    nav.createMesh({ 200, 200}, { 0, 0}, { 800, 600 });
+    //srand(time(NULL));
+    nav.createMesh({ 100, 100}, { 0, 0}, { 800, 600 });
     nav.meshByImage(world.getImage());
-    nav.setDebug(0);
+    nav.setDebug(false);
     
     boids.createBoids(100);
     
     
-
-
+    //pushDraw(new CircleShape);
     while (true){
         boids.tick();
         win.tick();
