@@ -164,7 +164,7 @@ public:
             if (!isValidPos(trace))
                 b = true;
         }        
-        //drawDebugLine(worldPos, worldPos + dir * 20, b ? Color::Red : Color::Blue);
+        drawDebugLine(worldPos, worldPos + dir * 20, b ? Color::Red : Color::Blue);
         return b;
     }
 
@@ -216,7 +216,7 @@ static World world;
 struct Boid {
 private:
     bool noCollision() {        
-        int trace = 2;
+        int trace = 6;
         int newCollide = 0;
 
         if (nav.traceForward(pos, Vector::rotate(dir, 30), trace, 1))
@@ -349,7 +349,7 @@ static Boids boids;
 
 int main() {
     //srand(time(NULL));
-    nav.createMesh({ 100, 100}, { 0, 0}, { 800, 600 });
+    nav.createMesh({ 200, 200}, { 0, 0}, { 800, 600 });
     nav.meshByImage(world.getImage());
     nav.setDebug(false);
     
