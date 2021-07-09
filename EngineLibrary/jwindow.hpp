@@ -9,6 +9,9 @@
 
 #include <list>
 #include <vector>
+#include <map>
+#include <set>
+#include <unordered_set>
 using namespace sf;
 using namespace std;
 
@@ -105,6 +108,25 @@ public:
 #define popDraw(d) JWindow::instance()>>d
 #define drawDebugLine JWindow::instance().debugLine
 #define drawDebugCir JWindow::instance().debugCircle
+
+
+class World :
+    public Singleton<World> {
+    Sprite sptr;
+    Texture txt;
+    Image img;
+
+public:
+    World() {
+        txt.loadFromFile("maze.png");
+        sptr.setTexture(txt);
+        pushDraw(&sptr);
+    }
+    Image getImage() {
+        return txt.copyToImage();
+    }
+};
+
 #endif // !_jwindow
 
 

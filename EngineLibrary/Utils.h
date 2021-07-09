@@ -83,9 +83,14 @@ public:
 		sanitaze();
 	}
 	bool operator==(Vector o) const{
-		return false;
-
+		return x == o.x && y == o.y;
 	}
+	bool operator<(Vector o) const{
+		return x < o.x && y < o.y;
+	}
+
+
+
 
 	Vector floor() {
 		return { int(x), int(y) };
@@ -94,8 +99,6 @@ public:
 		return { ::round(x), ::round(y) };
 	}
 
-	//static double rotate(angle)
-	
 	static double dot(Vector a, Vector b) {
 		double len = (a * b).length();
 		if (len < 0.0001)
