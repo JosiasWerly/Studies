@@ -23,6 +23,7 @@ struct Node {
     Vector pos, worldPos;
     Node *neighbours[4] = { 0 };    
     CircleShape *c = new CircleShape;
+    bool isEnable = false;
 
     static bool hasNeighbours(Node *n) {
         return n->neighbours[0] || n->neighbours[1] || n->neighbours[2] || n->neighbours[3];
@@ -49,7 +50,6 @@ struct Node {
             return _nodes[rand() % _nodes.size()];
         return nullptr;
     }
-    
 };
 
 class NavMesh{
@@ -70,9 +70,14 @@ public:
             return getAt((pos / worldSize * meshSize).round());
         return nullptr;
     }
-    inline Node* getAt(Vector pos) {
+    inline Node* getAt(Vector pos, bool needToBeValid = false) {
         if (pos.x >= 0 && pos.y >= 0 && pos.x < meshSize.x && pos.y < meshSize.y) {
             unsigned int _pos = pos.x + pos.y * meshSize.y;
+            if (needToBeValid) {
+                if (nodes[_pos]->isEnable)
+                    return nodes[_pos];                
+                return nullptr;
+            }
             return nodes[_pos];
         }
         return nullptr;
@@ -123,13 +128,15 @@ public:
 	}
 
     inline void enableNode(Node* n) {
-		n->neighbours[int(eDirection::up)] = getAt(n->pos + vectorDir(eDirection::up));
-		n->neighbours[int(eDirection::down)] = getAt(n->pos + vectorDir(eDirection::down));
-		n->neighbours[int(eDirection::left)] = getAt(n->pos + vectorDir(eDirection::left));
-		n->neighbours[int(eDirection::right)] = getAt(n->pos + vectorDir(eDirection::right));
+        n->isEnable = true;
+		n->neighbours[int(eDirection::up)] = getAt(n->pos + vectorDir(eDirection::up), true);
+		n->neighbours[int(eDirection::down)] = getAt(n->pos + vectorDir(eDirection::down), true);
+		n->neighbours[int(eDirection::left)] = getAt(n->pos + vectorDir(eDirection::left), true);
+		n->neighbours[int(eDirection::right)] = getAt(n->pos + vectorDir(eDirection::right), true);
         eNodes.push_back(n);
     }
     inline void disableNode(Node *n) {
+        n->isEnable = false;
         n->neighbours[int(eDirection::up)] = 0;
         n->neighbours[int(eDirection::down)] = 0;
         n->neighbours[int(eDirection::left)] = 0;
@@ -164,7 +171,7 @@ public:
             if (!isValidPos(trace))
                 b = true;
         }        
-        drawDebugLine(worldPos, worldPos + dir * 20, b ? Color::Red : Color::Blue);
+        //drawDebugLine(worldPos, worldPos + dir * 20, b ? Color::Red : Color::Blue);
         return b;
     }
 
@@ -347,17 +354,32 @@ public:
 static Boids boids;
 
 
+
+void makeHull2(list<Node*> points, vector<Vector> &out) {
+    for (auto p : points) {
+        int n = Node::validNeighbours(p).size();
+        if (n != 0 && n < 3) {
+            out.push_back(p->worldPos);
+        }
+    }
+}
 int main() {
     //srand(time(NULL));
-    nav.createMesh({ 200, 200}, { 0, 0}, { 800, 600 });
+    nav.createMesh({ 100, 100}, { 0, 0 }, { 800, 600 });
     nav.meshByImage(world.getImage());
-    nav.setDebug(false);
+    nav.setDebug(true);
     
-    boids.createBoids(100);
+    boids.createBoids(1);
     
-    
+
+    vector<Vector> out;    
+    makeHull2(nav.eNodes, out);
     //pushDraw(new CircleShape);
     while (true){
+        for (auto d : out){
+            drawDebugCir(d, 5, Color::Red);
+        }
+
         boids.tick();
         win.tick();
     }
