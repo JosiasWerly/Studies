@@ -389,7 +389,15 @@ using namespace std;
 
 
 
-
+enum class eDirection { up , down, left, right };
+constexpr Vector dirToVector(eDirection dir) {
+    switch (dir){
+    case eDirection::up:    return { 0, 1 };
+    case eDirection::down:  return { 0, -1 };
+    case eDirection::left:  return { -1, 0 };
+    case eDirection::right: return { 1, 0 };
+    }
+}
 struct Node {
 	Vector wPos;
 	Node *neighbours[4] = { 0 };
@@ -410,6 +418,19 @@ public:
 			delete n;
 		nodes.clear();
 	}
+	
+	inline void linkNode(Node *trg) {
+		#define fillNeighbours(e) \
+		{Node *f = getAt(trg->wPos + dirToVector(e) * cellSize); \
+		 trg->neighbours[int(e)] = f != trg ? f : nullptr;}
+
+		fillNeighbours(eDirection::up);
+		fillNeighbours(eDirection::down);
+		fillNeighbours(eDirection::left);
+		fillNeighbours(eDirection::right);
+		#undef fillNeighbours
+	}
+
 	void config(Vector cellSize) {
 		this->cellSize = cellSize;
 	}
@@ -419,8 +440,13 @@ public:
 		for (int x = 0; x < size.x; x++) {
 			for (int y = 0; y < size.y; y++) {
 				if (m.getPixel(x, y) != sf::Color::Black) {
-					Vector pos = (Vector(x, y) / this->cellSize).round() * this->cellSize;
-					if (!(std::find(validPoints.begin(), validPoints.end(), pos) != validPoints.end())) {
+					Vector pixPos{ x, y };
+					Vector pos = (pixPos / this->cellSize).round() * this->cellSize;
+					if (Vector::distance(pixPos, pos) > 0)
+						continue;
+					else if ((std::find(validPoints.begin(), validPoints.end(), pos) != validPoints.end()))
+						continue;
+					else {
 						validPoints.push_back(pos);
 						Node *n = new Node;
 						n->wPos = { pos };
@@ -428,7 +454,17 @@ public:
 					}
 				}
 			}
+		}		
+		for (auto n : nodes)
+			linkNode(n);
+	}
+	Node *getAt(Vector pos) {
+		double d = cellSize.length() / 2.f;
+		for (auto n : nodes){
+			if (Vector::distance(n->wPos, pos) < d)
+				return n;
 		}
+		return nullptr;
 	}
 	void setDebug(bool enable) {
 		if (enable) {
@@ -445,19 +481,121 @@ public:
 	}
 };
 
-class Navigation{
-public:
+
+static bool navTrace(NavInstance *nav, Vector start, Vector end, list<Node *> ignore = {nullptr}) {
+	Vector dir = end - start;
+	bool b = false;
+	if(Node *n = nav->getAt(start)){
+		double cellLen = nav->cellSize.length()/2;
+		int it = int(ceil(dir.length()/cellLen));
+		dir = dir.normalize() * cellLen;
+		for (size_t i = 0; i < it; i++){
+			if (Node *c = nav->getAt(start + dir * i)) {
+				if (std::find(ignore.begin(), ignore.end(), c) == ignore.end()) {
+					drawDebugCir(start + Vector::direction(start, c->wPos) * Vector::distance(start, c->wPos), 5, Color::Red);
+					b = true;
+				}
+			}
+				
+		}
+		drawDebugLine(start, end, b ? Color::Red : Color::Green);
+		return b;
+	}
+}
+
+
+static void genPath(Node* n, Vector &target, list<Node *> &path, double &dis, Vector &cellSize, int &it, int &maxIt) {
+	if (it++ < maxIt) {
+		Node *nextNode = nullptr;
+		list<Node *> buffered;
+		for (auto b : n->neighbours){
+			if (b) {
+				double newDis = Vector::distance(b->wPos, target);
+				if (newDis < dis) {
+					dis = newDis;
+					nextNode = b;
+					//cout << dis << " ";
+				}
+				else
+					buffered.push_back(b);
+			}
+		}
+		//cout << endl;
+		if (nextNode && dis > cellSize.length()) {
+			path.push_back(nextNode);
+			genPath(nextNode, target, path, dis, cellSize, it, maxIt);
+		}
+	}
+}
+static void genPath2(Node *n, Vector &target, list<Node *> &path, double &dis, Vector &cellSize, list<Node *> &ignore, int &it) {
+	if (it++ < 200 && find(path.begin(), path.end(), n) == path.end()) {
+		Node *nextNode = nullptr;
+		list<Node *> buffered;
+		for (auto b : n->neighbours) {
+			if (b) {
+				double newDis = Vector::distance(b->wPos, target);
+				buffered.push_back(b);
+				if (newDis < dis) {
+					dis = newDis;
+					nextNode = b;
+				}					
+			}
+		}
+		if (dis > cellSize.length()) {
+			if (nextNode) {
+				buffered.remove(nextNode);
+				genPath2(nextNode, target, path, dis, cellSize, ignore, it);
+				path.push_back(nextNode);
+			}
+			else {
+				while(buffered.size()){
+					nextNode = buffered.front();
+					dis += cellSize.length()*4;
+					genPath2(nextNode, target, path, dis, cellSize, ignore, it);
+					buffered.pop_front();
+				}
+			}
+		}
+		
+	}
+}
+
+static void getPath(NavInstance* nav, Vector start, Vector target, list<Node*>& path) {
+	path.clear();
+	if (Node *n = nav->getAt(start)) {
+		double dis = Vector::distance(start, target);
+		int it = 0,
+			maxIt = dis / nav->cellSize.length() * 3.f;
+		float m = 1.;
+		list<Node *> ig;
+		genPath2(n, target, path, dis, nav->cellSize, ig, it);
+	}
 	
-};
 
 
+}
 
 int main() {
 	NavInstance n;
-	n.config({ 20, 20 });
+	n.config({ 10, 10});
 	n.meshByImage(World::instance().getImage());
 	n.setDebug(true);
+
+	list<Node *> path;	
 	while (true){
+		Vector mPos = mousePos;
+		if (Node *t = n.getAt(mPos)) {
+			drawDebugLine({0, 0}, mPos, Color::Cyan);
+
+			for (auto p : path)
+				p->c->setFillColor(Color::Blue);
+			getPath(&n, n.getAt({250, 160})->wPos, t->wPos, path);
+			for (auto p : path)
+				p->c->setFillColor(Color::Green);
+		}
+
+
+
 		win.tick();
 	}
 	return 0;

@@ -62,25 +62,16 @@ public:
 		return out;
 		
 	}
-	inline void rotate(double angle) {
+	inline Vector rotate(double angle) {
 		const double deg2rad = 180.f / 3.1415926;
-		//double theta = (angle / 180.f / 3.1415926);
-		//double 
-		//	cs = cos(theta),
-		//	sn = sin(theta);
-		//double 
-		//	_x = x * cs - y * sn,
-		//	_y = x * sn + y * cs;
-		//x = _x;
-		//y = _y;
 		double d = this->angle();
 		double _alpha = this->angle() + angle;
 		_alpha /= deg2rad;
 		double l = length();
 
-		x = cos(_alpha) * l;
-		y = sin(_alpha) * l;
-		sanitaze();
+		Vector v { cos(_alpha) * l, sin(_alpha) * l };
+		v.sanitaze();
+		return v;
 	}
 	bool operator==(Vector o) const{
 		return x == o.x && y == o.y;

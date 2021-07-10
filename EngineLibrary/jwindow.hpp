@@ -87,6 +87,11 @@ public:
         rwin->display();
     }
 
+    Vector mousePos() {        
+        auto pi = sf::Mouse::getPosition() - rwin->getPosition();
+        pi -= {10, 30};
+        return { pi.x, pi.y };
+    }
 
     void debugLine(Vector2f pos, Vector2f end, Color c) {
         DebugLine *d = new DebugLine;
@@ -104,6 +109,7 @@ public:
     }
 };
 #define win JWindow::instance()
+#define mousePos JWindow::instance().mousePos()
 #define pushDraw(d) JWindow::instance()<<d
 #define popDraw(d) JWindow::instance()>>d
 #define drawDebugLine JWindow::instance().debugLine
