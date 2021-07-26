@@ -30,6 +30,7 @@
     </ClInclude>
     <ClInclude Include="jwindow.hpp" />
     <ClInclude Include="Utils.h" />
+    <ClInclude Include="NavSystem.hpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="sfml">
