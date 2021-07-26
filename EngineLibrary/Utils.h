@@ -128,20 +128,23 @@ public:
 
 
 template<class T>class Var {
-protected:
+public :
 	friend class Var;
-	struct Data {
+	template<class t>struct TData {
 	public:
 		unsigned int refCount = 1;
-		T *val = nullptr;
-		~Data() {
+		t *val = nullptr;
+		~TData() {
 			delete val;
 			val = 0;
 		}
 	};
+	
+	typename typedef TData<T> Data;
+	
+	
+	
 	Data *dt = new Data;
-	typedef typename Var<T>::Data TData;
-
 	inline void _unRef() {
 		if (--dt->refCount == 0)
 			delete dt;
@@ -177,10 +180,8 @@ public:
 		dt->val = nullptr;
 	}
 
-	template<class t> Var<t> as() {		
-		Var<t> out;
-
-		
+	template<typename tt> Var<tt> as() {
+		Var<tt> out;
 		return out;
 	}
 };
