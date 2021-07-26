@@ -12,37 +12,26 @@ using namespace std;
 #include "jwindow.hpp"
 
 
+
+
 class Object{
 public:
-	virtual void tick() {
-	}
 };
-class ObjectSystem : 
-	public Singleton<ObjectSystem> {
+class GarbageSystem : 
+	public Singleton<GarbageSystem> {
 public:
-	list<Object*> objects, toDestroy;
-	void tick() {
-		for (auto o : objects){
-			o->tick();
-		}
-		for (auto d : toDestroy) {
-			objects.remove(d);
-			delete d;
-			d = nullptr;
-		}
-		toDestroy.clear();
-	}
+	list<Var<Object>> objects;
 };
 
 template<class T> T *instantiate(T *init) {
-	auto &i = ObjectSystem::instance();
-	Object *o = init;
-	i.objects.push_back(o);
+	//auto &i = ObjectSystem::instance();
+	//Object *o = init;
+	//i.objects.push_back(o);
 	return init;
 }
 void destroy(Object* obj) {
-	auto &i =ObjectSystem::instance();
-	i.toDestroy.push_back(obj);
+	//auto &i =ObjectSystem::instance();
+	//i.toDestroy.push_back(obj);
 }
 
 
@@ -63,6 +52,18 @@ public:
 
 
 int main() {
+	{
+		Var<int> a, b;
+		Var<float> c;
+		a = b;
+		a = new int(123);
+		a.clear();
+
+		c = a.as<float>();
+
+		
+	}
+
 	Engine::instance();
 
 	while (true){

@@ -127,8 +127,62 @@ public:
 };
 
 
-class Types{
+template<class T>class Var {
+protected:
+	friend class Var;
+	struct Data {
+	public:
+		unsigned int refCount = 1;
+		T *val = nullptr;
+		~Data() {
+			delete val;
+			val = 0;
+		}
+	};
+	Data *dt = new Data;
+	typedef typename Var<T>::Data TData;
+
+	inline void _unRef() {
+		if (--dt->refCount == 0)
+			delete dt;
+	}
+	inline void _assing(Data *o) {
+		_unRef();
+		dt = o;
+		dt->refCount++;
+	}
 public:
+	Var(T *init = nullptr) {
+		dt->val = init;
+	}
+	Var(const Var &cpy) {
+		this->dt = cpy.dt;
+	}
+	~Var() {
+		_unRef();
+	}
+	Var &operator=(Var &o) {
+		_assing(o.dt);
+		return *this;
+	}
+
+	T *operator=(T *v) {		
+		return dt->val = v;
+	}
+	operator T *() {
+		return dt->val;
+	}
+	void clear() {
+		delete dt->val;
+		dt->val = nullptr;
+	}
+
+	template<class t> Var<t> as() {		
+		Var<t> out;
+
+		
+		return out;
+	}
 };
 
 
