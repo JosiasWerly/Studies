@@ -31,6 +31,7 @@
     <ClInclude Include="jwindow.hpp" />
     <ClInclude Include="Utils.h" />
     <ClInclude Include="NavSystem.hpp" />
+    <ClInclude Include="jEngine.hpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="sfml">

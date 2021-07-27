@@ -128,7 +128,7 @@ public:
 
 
 template<class T>class Var {
-public :
+protected:
 	friend class Var;
 	template<class t>struct TData {
 	public:
@@ -139,15 +139,15 @@ public :
 			val = 0;
 		}
 	};
-	
 	typename typedef TData<T> Data;
 	
-	
-	
-	Data *dt = new Data;
+	Data *dt = nullptr;
+
 	inline void _unRef() {
-		if (--dt->refCount == 0)
+		if (--dt->refCount == 0) {
 			delete dt;
+			dt = nullptr;
+		}
 	}
 	inline void _assing(Data *o) {
 		_unRef();
@@ -155,18 +155,28 @@ public :
 		dt->refCount++;
 	}
 public:
-	Var(T *init = nullptr) {
-		dt->val = init;
-	}
-	Var(const Var &cpy) {
-		this->dt = cpy.dt;
+	inline unsigned int refs() {
+		return dt ? dt->refCount : 0;
 	}
 	~Var() {
 		_unRef();
 	}
+	Var(const Var &cpy) {
+		this->dt = cpy.dt;
+		this->dt->refCount++;
+	}
 	Var &operator=(Var &o) {
 		_assing(o.dt);
 		return *this;
+	}
+	bool operator==(const Var &v) const {
+		return dt == v.dt;
+	}
+
+	
+	Var(T *init = nullptr) {
+		dt = new Data;
+		dt->val = init;
 	}
 
 	T *operator=(T *v) {		
@@ -175,15 +185,10 @@ public:
 	operator T *() {
 		return dt->val;
 	}
-	void clear() {
-		delete dt->val;
-		dt->val = nullptr;
+	T *operator->() {
+		return dt->val;
 	}
 
-	template<typename tt> Var<tt> as() {
-		Var<tt> out;
-		return out;
-	}
 };
 
 
