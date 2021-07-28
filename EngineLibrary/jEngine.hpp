@@ -18,39 +18,50 @@ using namespace std;
 
 
 
-class Object {
+class Class {
+private:
+	template<class T> friend Class *instantiate(T *init);
+	friend void destroy(Class *target);
+	Var<Class> var;
 public:
-	virtual void tick() {}
+	Class() {}
+	virtual ~Class() {}
 };
 class GarbageSystem :
 	public Singleton<GarbageSystem> {
 public:
-	list<Var<Object>> objects;
-	list<Var<Object> *> toDelete;
+	list<Var<Class>> objects;
+	//list<Var<Class>*> toDelete, toUnroot;
 
 	void tick() {
-		for (auto &o : objects) {
-			if (o.refs() <= 1)
-				toDelete.push_back(&o);
-			else
-				o->tick();
-		}
-		for (auto d : toDelete) {
-			delete *d;
-			objects.remove(*d);
-		}
-		toDelete.clear();
+		//for (auto &o : objects) {
+		//	if (o.refs() <= 1)
+		//		toUnroot.push_back(&o);
+		//}
+		//for (auto d : toDelete) {
+		//	delete *d;
+		//	*d = nullptr;
+		//}
+		//for (auto r : toUnroot) {
+		//	delete *r;
+		//	r = nullptr;
+		//	objects.remove(*r);
+		//}
+		//toDelete.clear();
+		//toUnroot.clear();
 	}
 };
-template<class T> Var<Object> instantiate(T *init = new T) {
+
+template<class T> Class* instantiate(T *init = new T) {
 	auto &gs = GarbageSystem::instance();
-	Object *newObj = init;
-	gs.objects.emplace_back(newObj);
-	return gs.objects.back();
+	Class *newObj = init;
+	newObj->var = newObj;
+	gs.objects.emplace_back(newObj->var);
+	return newObj;
 }
-void destroy(Var<Object> &target) {
+void destroy(Class *target) {
 	auto &gs = GarbageSystem::instance();
-	gs.toDelete.emplace_back(&target);
+	//gs.toDelete.emplace_back(&target);
 }
 
 class Engine :

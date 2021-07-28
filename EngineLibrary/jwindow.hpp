@@ -52,7 +52,7 @@ protected:
 public: 
     JWindow() {
         rwin = new RenderWindow(sf::VideoMode(800, 600), "SFML window");
-        rwin->setFramerateLimit(1);
+        rwin->setFramerateLimit(60);
     }
     ~JWindow(){}
 
