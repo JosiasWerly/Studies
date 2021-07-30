@@ -11,12 +11,12 @@
 using namespace sf;
 using namespace std;
 enum class eDirection { up, right, down, left };
-constexpr Vector dirToVector(eDirection dir) {
+constexpr const Vector&& dirToVector(eDirection dir) {
 	switch (dir) {
-	case eDirection::up:    return { 0, 1 };
-	case eDirection::down:  return { 0, -1 };
-	case eDirection::left:  return { -1, 0 };
-	case eDirection::right: return { 1, 0 };
+	case eDirection::up:    return Vector::Vector(0, 1);
+	case eDirection::down:  return Vector::Vector(0, -1);
+	case eDirection::left:  return Vector::Vector(-1, 0);
+	case eDirection::right: return Vector::Vector(1, 0);
 	}
 }
 struct Node {
@@ -45,9 +45,9 @@ public:
 
 	inline void linkNode(Node *trg) {
 #define fillNeighbours(e) \
-		{Node *f = getAt(trg->wPos + dirToVector(e) * cellSize); \
+		{Node *f = getAt(trg->wPos + Vector(dirToVector(e)) * cellSize); \
 		 trg->neighbours[int(e)] = f != trg ? f : nullptr;}
-
+		
 		fillNeighbours(eDirection::up);
 		fillNeighbours(eDirection::down);
 		fillNeighbours(eDirection::left);

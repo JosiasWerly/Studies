@@ -1,17 +1,24 @@
 #include "jEngine.hpp"
+#include "CollisionSystem.hpp"
+
+
+
+
+
 
 struct Stats {
 	unsigned int f = 0, col = 0;
 	Clock ms;
 };
 Stats st;
-class Actor {
+class Actor : public E::Instance{
 public:
 	Vector pos, dir;
 	CircleShape c;
-	Actor() {
+	Actor() : 
+		E::Instance(this->pos, 20) {
 		pos = { rand() % 600 + 100, rand() % 500 + 50 };
-		dir = { rand() % 3+1, rand() % 3 + 1 };
+		dir = { rand() % 3 + 1, rand() % 3 + 1 };
 		dir = dir.rotate(rand() % 180);
 		c.setRadius(5);
 		c.setOrigin({ 5, 5 });
@@ -36,17 +43,20 @@ public:
 		c.setFillColor(Color::Green);
 		c.setPosition(pos);
 	}
-	void onBeginOverlap(Actor* o) {
+	void onBeginOverlap(Actor *o) {
+		c.setFillColor(Color::Red);
+	}
+	void collision(E::Instance *o) override{
 		c.setFillColor(Color::Red);
 	}
 };
-static vector<Actor*> acts;
+static vector<Actor *> acts;
 
-vector<Actor *> orderByDistance(vector<Actor*> ls, Vector location) {
+vector<Actor *> orderByDistance(vector<Actor *> ls, Vector location) {
 	vector<Actor *> out;
-	while(ls.size()){
-		std::pair<Actor *, double> p = {nullptr, 0};	
-		for (auto &a : ls){
+	while (ls.size()) {
+		std::pair<Actor *, double> p = { nullptr, 0 };
+		for (auto &a : ls) {
 			double nDis = Vector::distance(location, a->pos);
 			if (nDis >= p.second)
 				p = { a, nDis };
@@ -59,92 +69,42 @@ vector<Actor *> orderByDistance(vector<Actor*> ls, Vector location) {
 
 
 
+void quadBased(E::Quad *root) {
+	for (auto &i : E::insts){
+		E::tick(root, i);
+	}
 
+	for (auto q : E::quads) {
+		auto p = q->rc.startPoint,
+			s = q->rc.endPoint;
+		drawDebugLine(p, Vector{ p.x, s.y }, Color::Red);
+		drawDebugLine(p, Vector{ s.x, p.y }, Color::Red);
+		drawDebugLine(s, Vector{ s.x, p.y }, Color::Red);
+		drawDebugLine(s, Vector{ p.x, s.y }, Color::Red);
+	}
+}
 
-namespace Experimental {	
-
-	
-	void distanceBased() {
-		for (size_t x = 0; x < acts.size(); x++){
-			for (size_t y = x+1; y < acts.size(); y++) {
-				double r = acts[x]->c.getRadius();
-				if (Vector::distance(acts[x]->pos, acts[y]->pos) <= r) {
-					acts[x]->onBeginOverlap(acts[y]);
-					acts[y]->onBeginOverlap(acts[x]);
-					st.col++;
-				}
+void distanceBased() {
+	for (size_t x = 0; x < acts.size(); x++) {
+		for (size_t y = x + 1; y < acts.size(); y++) {
+			double r = acts[x]->c.getRadius();
+			if (Vector::distance(acts[x]->pos, acts[y]->pos) <= r) {
+				acts[x]->onBeginOverlap(acts[y]);
+				acts[y]->onBeginOverlap(acts[x]);
+				st.col++;
 			}
 		}
 	}
-
-
-	const unsigned int k = 2;
-	struct Link{
-		double w = 9999;
-		Link *n[k];
-		Actor *a[k];
-	};
-
-	vector<Link *> ls;
-	int id = 0;
-	void swapTargets(Link *a, Link *b, int ida, int idb) {
-		auto bf = a->a[ida];
-		a->a[ida] = b->a[idb];
-		b->a[idb] = bf;
-	}
-	pair<double, int> minorDistance(Link *trg, Actor *a) {
-		pair<double, int> out = {999999, -1};
-		for (auto ta : trg->a){
-			double nd = Vector::distance(a->pos, ta->pos);
-			if (nd < out.first) {
-				i = nd;
-			}
-
-		}
-		return out;
-	}
-	void linkBased() {
-		if (!ls.size()) {
-			unsigned int maxSize = acts.size() / k;
-			ls.resize(maxSize);
-			int aId = 0, lId = 0;
-			for (auto &l : ls) {				
-				Link *ln = new Link;
-				ln->a[0] = acts[aId++];
-				ln->a[1] = acts[aId++];
-				l = ln;
-			}
-			for (int i = 0; i < maxSize; i++) {
-				ls[i]->n[0] = ls[i - 1 < 0 ? maxSize - 1 : i - 1 % maxSize];
-				ls[i]->n[1] = ls[i + 1 % maxSize - 1];
-				ls[i]->w = Vector::distance(ls[i]->a[0]->pos, ls[i]->a[1]->pos);
-			}
-		}
-		else {
-			for (size_t i = 0; i < ls.size(); i++){
-				auto &ia = ls[i];
-				ia->w = Vector::distance(ia->a[0]->pos, ia->a[1]->pos);
-				for (auto &n : ia->n){
-					
-
-					//if (ia->w <= nd) {
-					//	swapTargets(ia, n, 0, 0);
-					//	ia->w = nd;
-					//	break;
-					//}
-				}
-			}
-
-			for (auto l : ls)
-				drawDebugLine(l->a[0]->pos, l->a[1]->pos, Color::Red);
-		}
-	}
-};
+}
 int main() {
-	for (size_t i = 0; i < 6; i++)
+	E::Quad *root = new E::Quad({ { 100, 100 }, {500, 500} }, 4);
+	//E::Quad::mountTree(root);
+	for (size_t i = 0; i < 6; i++) {
 		acts.push_back(new Actor);
+		//E::Quad::insert(root, acts.back());
+	}
 
-	while (true){
+	while (true) {
 
 		if (st.f++ == 0)
 			st.ms.restart();
@@ -154,10 +114,8 @@ int main() {
 				acts[0]->pos = mousePos;
 			}
 			acts[x]->tick();
-
 		}
-		Experimental::linkBased();
-
+		quadBased(root);
 		if (st.f >= 60) {
 			cout << st.ms.getElapsedTime().asMilliseconds() << ", " << st.col << endl;
 			st.f = 0;
@@ -165,8 +123,241 @@ int main() {
 		}
 
 
-		
 		e.tick();
 	}
 	return 0;
 }
+
+
+//
+//
+//#include <iostream>
+//#include <cmath>
+//using namespace std;
+//
+//// Used to hold details of a point
+//struct Point
+//{
+//    int x;
+//    int y;
+//    Point(int _x, int _y)
+//    {
+//        x = _x;
+//        y = _y;
+//    }
+//    Point()
+//    {
+//        x = 0;
+//        y = 0;
+//    }
+//};
+//
+//// The objects that we want stored in the quadtree
+//struct Node
+//{
+//    Point pos;
+//    int data;
+//    Node(Point _pos, int _data)
+//    {
+//        pos = _pos;
+//        data = _data;
+//    }
+//    Node()
+//    {
+//        data = 0;
+//    }
+//};
+//
+//// The main quadtree class
+//class Quad
+//{
+//    // Hold details of the boundary of this node
+//    Point topLeft;
+//    Point botRight;
+//
+//    // Contains details of node
+//    Node *n;
+//
+//    // Children of this tree
+//    Quad *topLeftTree;
+//    Quad *topRightTree;
+//    Quad *botLeftTree;
+//    Quad *botRightTree;
+//
+//public:
+//    Quad()
+//    {
+//        topLeft = Point(0, 0);
+//        botRight = Point(0, 0);
+//        n = NULL;
+//        topLeftTree = NULL;
+//        topRightTree = NULL;
+//        botLeftTree = NULL;
+//        botRightTree = NULL;
+//    }
+//    Quad(Point topL, Point botR)
+//    {
+//        n = NULL;
+//        topLeftTree = NULL;
+//        topRightTree = NULL;
+//        botLeftTree = NULL;
+//        botRightTree = NULL;
+//        topLeft = topL;
+//        botRight = botR;
+//    }
+//    void insert(Node *);
+//    Node *search(Point);
+//    bool inBoundary(Point);
+//};
+//
+//// Insert a node into the quadtree
+//void Quad::insert(Node *node)
+//{
+//    if (node == NULL)
+//        return;
+//
+//    // Current quad cannot contain it
+//    if (!inBoundary(node->pos))
+//        return;
+//
+//    // We are at a quad of unit area
+//    // We cannot subdivide this quad further
+//    if (abs(topLeft.x - botRight.x) <= 1 &&
+//        abs(topLeft.y - botRight.y) <= 1)
+//    {
+//        if (n == NULL)
+//            n = node;
+//        return;
+//    }
+//
+//    if ((topLeft.x + botRight.x) / 2 >= node->pos.x)
+//    {
+//        // Indicates topLeftTree
+//        if ((topLeft.y + botRight.y) / 2 >= node->pos.y)
+//        {
+//            if (topLeftTree == NULL)
+//                topLeftTree = new Quad(
+//                    Point(topLeft.x, topLeft.y),
+//                    Point((topLeft.x + botRight.x) / 2,
+//                        (topLeft.y + botRight.y) / 2));
+//            topLeftTree->insert(node);
+//        }
+//
+//        // Indicates botLeftTree
+//        else
+//        {
+//            if (botLeftTree == NULL)
+//                botLeftTree = new Quad(
+//                    Point(topLeft.x,
+//                        (topLeft.y + botRight.y) / 2),
+//                    Point((topLeft.x + botRight.x) / 2,
+//                        botRight.y));
+//            botLeftTree->insert(node);
+//        }
+//    }
+//    else
+//    {
+//        // Indicates topRightTree
+//        if ((topLeft.y + botRight.y) / 2 >= node->pos.y)
+//        {
+//            if (topRightTree == NULL)
+//                topRightTree = new Quad(
+//                    Point((topLeft.x + botRight.x) / 2,
+//                        topLeft.y),
+//                    Point(botRight.x,
+//                        (topLeft.y + botRight.y) / 2));
+//            topRightTree->insert(node);
+//        }
+//
+//        // Indicates botRightTree
+//        else
+//        {
+//            if (botRightTree == NULL)
+//                botRightTree = new Quad(
+//                    Point((topLeft.x + botRight.x) / 2,
+//                        (topLeft.y + botRight.y) / 2),
+//                    Point(botRight.x, botRight.y));
+//            botRightTree->insert(node);
+//        }
+//    }
+//}
+//
+//// Find a node in a quadtree
+//Node *Quad::search(Point p)
+//{
+//    // Current quad cannot contain it
+//    if (!inBoundary(p))
+//        return NULL;
+//
+//    // We are at a quad of unit length
+//    // We cannot subdivide this quad further
+//    if (n != NULL)
+//        return n;
+//
+//    if ((topLeft.x + botRight.x) / 2 >= p.x)
+//    {
+//        // Indicates topLeftTree
+//        if ((topLeft.y + botRight.y) / 2 >= p.y)
+//        {
+//            if (topLeftTree == NULL)
+//                return NULL;
+//            return topLeftTree->search(p);
+//        }
+//
+//        // Indicates botLeftTree
+//        else
+//        {
+//            if (botLeftTree == NULL)
+//                return NULL;
+//            return botLeftTree->search(p);
+//        }
+//    }
+//    else
+//    {
+//        // Indicates topRightTree
+//        if ((topLeft.y + botRight.y) / 2 >= p.y)
+//        {
+//            if (topRightTree == NULL)
+//                return NULL;
+//            return topRightTree->search(p);
+//        }
+//
+//        // Indicates botRightTree
+//        else
+//        {
+//            if (botRightTree == NULL)
+//                return NULL;
+//            return botRightTree->search(p);
+//        }
+//    }
+//};
+//
+//// Check if current quadtree contains the point
+//bool Quad::inBoundary(Point p)
+//{
+//    return (p.x >= topLeft.x &&
+//        p.x <= botRight.x &&
+//        p.y >= topLeft.y &&
+//        p.y <= botRight.y);
+//}
+//
+//// Driver program
+//int main()
+//{
+//    Quad center(Point(0, 0), Point(8, 8));
+//    Node a(Point(1, 1), 1);
+//    Node b(Point(2, 5), 2);
+//    Node c(Point(7, 6), 3);
+//    center.insert(&a);
+//    center.insert(&b);
+//    center.insert(&c);
+//    cout << "Node a: " <<
+//        center.search(Point(1, 1))->data << "\n";
+//    cout << "Node b: " <<
+//        center.search(Point(2, 5))->data << "\n";
+//    cout << "Node c: " <<
+//        center.search(Point(7, 6))->data << "\n";
+//    cout << "Non-existing node: "
+//        << center.search(Point(5, 5));
+//    return 0;
+//}

@@ -32,6 +32,7 @@
     <ClInclude Include="Utils.h" />
     <ClInclude Include="NavSystem.hpp" />
     <ClInclude Include="jEngine.hpp" />
+    <ClInclude Include="CollisionSystem.hpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="sfml">

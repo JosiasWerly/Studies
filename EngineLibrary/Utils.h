@@ -10,13 +10,13 @@ public:
 
 
 	
-	constexpr Vector(){}	
-	constexpr Vector(int x, int y) : x(double(x)), y(double(y)) {
+	Vector(){}
+	Vector(int x, int y) : x(double(x)), y(double(y)) {
 		
 	}
-	constexpr Vector(double x, double y) : x(x), y(y){
+	Vector(double x, double y) : x(x), y(y){
 	}
-	
+
 	inline operator sf::Vector2f() const { return { float(x), float(y) };	}
 
 	void sanitaze() {
