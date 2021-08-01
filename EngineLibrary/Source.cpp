@@ -82,16 +82,16 @@ void distanceBased() {
 	}
 }
 int main() {
-
 	E::Quad *root = new E::Quad({ { 50, 50 }, {700, 500} }, 4);
+	E::build(root);
 	for (size_t i = 0; i < 500; i++) {
 		acts.push_back(new Actor);
 	}
 
 	while (true) {
 
-		if (st.f++ == 0)
-			st.ms.restart();
+		
+		st.ms.restart();
 
 		for (int x = 0; x < acts.size(); x++) {
 			if (x == 0) {
@@ -103,11 +103,8 @@ int main() {
 		E::tick(root);
 		//distanceBased();
 		st.col = E::collTests;
-		if (st.f >= 60) {
-			cout << st.ms.getElapsedTime().asMilliseconds() << ", " << st.col << endl;
-			st.f = 0;
-			st.col = 0;
-		}
+		cout << st.ms.getElapsedTime().asMilliseconds() << ", " << st.col << endl;
+		st.col = 0;
 
 
 		e.tick();
