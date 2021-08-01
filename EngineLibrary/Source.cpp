@@ -105,8 +105,6 @@ int main() {
 		st.col = E::collTests;
 		cout << st.ms.getElapsedTime().asMilliseconds() << ", " << st.col << endl;
 		st.col = 0;
-
-
 		e.tick();
 	}
 	return 0;

@@ -164,17 +164,15 @@ namespace E {
 			}
 		}
 	}
-	
-	
-	static Quad *search(Quad *q, Instance *i) {
-		if (inBoundry(q->rc, i->r)) {			
+	/*static Quad *search(Quad *q, Instance *i) {
+		if (inBoundry(q->rc, i->r)) {
 			if (q->subDivisions != 0) {
 				Quad *out = nullptr;
 				if (out = search(q->tr, i))
 					return out;
 				else if (out = search(q->br, i))
 					return out;
-				else if (out = search(q->bl, i))
+				if (out = search(q->bl, i))
 					return out;
 				else if (out = search(q->tl, i))
 					return out;
@@ -184,31 +182,58 @@ namespace E {
 			}
 		}
 		return nullptr;
+	}*/
+
+	static bool search(Quad *q, Instance *i, list<Quad *> &qs) {
+		if (inBoundry(q->rc, i->r)) {			
+			if(q->subDivisions > 1){
+				if (search(q->tr, i, qs));
+				else if (search(q->bl, i, qs));
+				
+				if (search(q->br, i, qs));
+				else if (search(q->tl, i, qs));
+			}
+			else if (q->subDivisions == 1){ //leafCheck
+				search(q->tr, i, qs);
+				search(q->bl, i, qs);
+				search(q->br, i, qs);
+				search(q->tl, i, qs);				
+			}
+			else
+				qs.push_back(q);
+			return true;
+		}
+		else
+			return false;
 	}
 	static void tick(Quad *q) {
 		collTests = 0;
 		for (auto &i : E::insts) {
-			if (Quad *qq = search(q, i)) {
-				auto &isl = qq->is;
-				for (auto ins : isl) {
-					if (inBoundry(ins->r, i->r)) {
-						i->collision(ins);
-						ins->collision(i);
-						collTests++;
-						drawDebugLine(i->r.pos, ins->r.pos, Color::White);
+			list<Quad *> qs;
+			if (search(q, i, qs)) {
+				for (auto &qq : qs){
+					if (qq) {
+						auto &isl = qq->is;
+						for (auto ins : isl) {
+							if (inBoundry(ins->r, i->r)) {
+								i->collision(ins);
+								ins->collision(i);
+								collTests++;
+								//drawDebugLine(i->r.getCenter(), ins->r.getCenter(), Color::Red);
+							}
+						}
+						qq->is.push_back(i);
 					}
 				}
-				qq->is.push_back(i);
 			}
 		}
-
 		for (auto &q : quads) {
-			//if (q->is.size()) {
-			//	drawDebugQuad(q->rc.pos, q->rc.size, Color(int(q->rc.pos.x)%255, int(q->rc.pos.y) % 255, 0, 100));
-			//	for (auto &i : q->is){
-			//		//drawDebugLine(q->rc.center, i->r.getCenter(), Color::White);
-			//	}
-			//}
+			if (q->is.size()) {
+				drawDebugQuad(q->rc.pos, q->rc.size, Color(int(q->rc.pos.x)%255, int(q->rc.pos.y) % 255, 0, 100));
+				//for (auto &i : q->is){
+				//	drawDebugLine(q->rc.center, i->r.getCenter(), Color::White);
+				//}
+			}
 			q->is.clear();
 		}
 
