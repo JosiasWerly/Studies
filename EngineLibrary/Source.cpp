@@ -84,7 +84,7 @@ void distanceBased() {
 int main() {
 	E::Quad *root = new E::Quad({ { 50, 50 }, {700, 500} }, 4);
 	E::build(root);
-	for (size_t i = 0; i < 500; i++) {
+	for (size_t i = 0; i < 800; i++) {
 		acts.push_back(new Actor);
 	}
 
