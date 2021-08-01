@@ -29,7 +29,7 @@ public:
 		popDraw(&c);
 	}
 	void tick() {
-		//pos = pos + dir;
+		pos = pos + dir;
 		if (pos.x < 0)
 			pos.x = 800;
 		else if (pos.x > 800)
@@ -73,18 +73,18 @@ vector<Actor *> orderByDistance(vector<Actor *> ls, Vector location) {
 void distanceBased() {
 	for (size_t x = 0; x < acts.size(); x++) {
 		for (size_t y = x + 1; y < acts.size(); y++) {
-			double r = acts[x]->c.getRadius();
-			if (Vector::distance(acts[x]->pos, acts[y]->pos) <= r) {
+			if (E::inBoundry(acts[x]->r, acts[y]->r)) {
 				acts[x]->onBeginOverlap(acts[y]);
 				acts[y]->onBeginOverlap(acts[x]);
-				st.col++;
 			}
+			st.col++;
 		}
 	}
 }
 int main() {
-	E::Quad *root = new E::Quad({ { 100, 100 }, {400, 400} }, 4);
-	for (size_t i = 0; i < 6; i++) {
+
+	E::Quad *root = new E::Quad({ { 50, 50 }, {700, 500} }, 4);
+	for (size_t i = 0; i < 500; i++) {
 		acts.push_back(new Actor);
 	}
 
@@ -101,6 +101,8 @@ int main() {
 			acts[x]->tick();
 		}
 		E::tick(root);
+		//distanceBased();
+		st.col = E::collTests;
 		if (st.f >= 60) {
 			cout << st.ms.getElapsedTime().asMilliseconds() << ", " << st.col << endl;
 			st.f = 0;

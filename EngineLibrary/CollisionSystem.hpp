@@ -3,7 +3,7 @@
 #include "jEngine.hpp"
 
 namespace E {
-
+	static int collTests = 0;
 	class Quad;
 	static list<struct Instance *> insts;
 	static list<Quad *> quads;
@@ -59,26 +59,39 @@ namespace E {
 		}
 	};
 	
+
 	static inline bool inBoundry(Rect &a, Rect &b) {
 		auto 
+			ar = a.pos + a.size,
+			br = b.pos + b.size;
+
+		return a.pos.x < br.x &&
+			ar.x > b.pos.x &&
+			a.pos.y < br.y &&
+			ar.y > b.pos.y;
+
+		/*auto 
 			ar = a.pos + a.size,
 			br = b.pos + b.size;
 		return a.pos.x < br.x &&
 			ar.x > b.pos.x &&
 			a.pos.y < br.y &&
-			ar.y > b.pos.y;
+			ar.y > b.pos.y;*/
 	}
+	static void insert(Quad *q, Instance *n);
+
 	static void insert(Quad *q, Instance *n) {
 		if (inBoundry(q->rc, n->r)) {
-			const int sub = q->subDivisions - 1;
-			q->is.push_back(n);
+			const int sub = q->subDivisions - 1;			
 			if (sub != 0) {
 				auto &c = q->rc.getCenter();
 				auto &p = n->r.pos;
+				auto ep = n->r.pos + n->r.size;
 				Quad *tq = q;
+
 				if (p.x < c.x) {
 					if (p.y < c.y) {
-						if(!q->tl)
+						if (!q->tl)
 							q->newTl();
 						insert(q->tl, n);
 					}
@@ -100,51 +113,61 @@ namespace E {
 						insert(q->br, n);
 					}
 				}
-			}
-		}
-		else {
-			q->is.remove(n);
-		}
 
-		/*
-		if (Rect::inBoundry(q->rc, n->pos)) {
-			if (q->subDivisions - 1 != 0) {
-				auto &center = q->rc.center;
-				if (n->pos.y > center.y) {
-					if (n->pos.x > center.x) {
-						if (!q->br)
-							q->br = new Quad({ center, q->rc.endPoint }, q->subDivisions - 1);
-						insert(q->br, n);
+
+				if (ep.x < c.x) {
+					if (ep.y < c.y) {
+						if (!q->tl)
+							q->newTl();
+						insert(q->tl, n);
 					}
 					else {
 						if (!q->bl)
-							q->bl = new Quad({ {q->rc.startPoint.x, center.y} ,  {center.x, q->rc.endPoint.y} }, q->subDivisions - 1);
+							q->newBl();
 						insert(q->bl, n);
 					}
 				}
 				else {
-					if (n->pos.x > center.x) {
+					if (ep.y < c.y) {
 						if (!q->tr)
-							q->tr = new Quad({ {center.x, q->rc.startPoint.y}, {q->rc.endPoint.x , center.y} }, q->subDivisions - 1);
+							q->newTr();
 						insert(q->tr, n);
 					}
 					else {
-						if (!q->tl)
-							q->tl = new Quad({ q->rc.startPoint, center }, q->subDivisions - 1);
-						insert(q->tl, n);
+						if (!q->br)
+							q->newBr();
+						insert(q->br, n);
 					}
 				}
 			}
-		}*/
+			else {
+				for (auto &s : q->is){
+					if (n != s && inBoundry(s->r, n->r)) {
+						collTests++;
+						s->collision(n);
+						n->collision(s);
+					}
+				}
+				q->is.push_back(n);
+			}
+		}
 	}
 
 	static void tick(Quad *q) {
-		insert(q, insts.front());
+		collTests = 0;
+		for (auto &i : E::insts){
+			insert(q, i);
+		}
+
+		//insert(q, insts.front());
 		for (auto &q : quads) {
-			drawDebugQuad(q->rc.pos, q->rc.size, Color(255, 0, 0, 20));
-			for (auto &i : q->is){
-				drawDebugLine(q->rc.center, i->r.pos, Color::White);
+			if (q->is.size()) {
+				drawDebugQuad(q->rc.pos, q->rc.size, Color(255, 0, 0, 20));
+				for (auto &i : q->is){
+					drawDebugLine(q->rc.center, i->r.getCenter(), Color::White);
+				}
 			}
+			q->is.clear();
 		}
 
 	}
