@@ -18,6 +18,7 @@ using namespace std;
 #include "Utils.h"
 
 static CircleShape cir;
+static RectangleShape rs;
 class JWindow : 
     public Singleton<JWindow>{
 protected:
@@ -42,7 +43,16 @@ protected:
             rwin->draw(cir);            
         }
     };
-
+    struct DebugQuad : DebugQuery {
+        Color c;
+        Vector2f pos, size;
+        inline void draw(RenderWindow *rwin) {
+            rs.setFillColor(c);
+            rs.setPosition(pos);
+            rs.setSize(size);
+            rwin->draw(rs);
+        }
+    };
 
     list<DebugQuery*> debugQueryDraw;
 
@@ -107,6 +117,13 @@ public:
         dc->radius = radius;
         debugQueryDraw.push_back(dc);
     }
+    void debugQuad(Vector2f pos, Vector2f size, Color c) {
+        DebugQuad *dc = new DebugQuad;
+        dc->pos = pos;
+        dc->size = size;
+        dc->c = c;
+        debugQueryDraw.push_back(dc);
+    }
 };
 #define win JWindow::instance()
 #define mousePos JWindow::instance().mousePos()
@@ -114,6 +131,7 @@ public:
 #define popDraw(d) JWindow::instance()>>d
 #define drawDebugLine JWindow::instance().debugLine
 #define drawDebugCir JWindow::instance().debugCircle
+#define drawDebugQuad JWindow::instance().debugQuad
 
 
 class World :

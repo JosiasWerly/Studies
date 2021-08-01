@@ -15,14 +15,14 @@ class Actor : public E::Instance{
 public:
 	Vector pos, dir;
 	CircleShape c;
-	Actor() : 
-		E::Instance(this->pos, 20) {
+	Actor() {
 		pos = { rand() % 600 + 100, rand() % 500 + 50 };
 		dir = { rand() % 3 + 1, rand() % 3 + 1 };
 		dir = dir.rotate(rand() % 180);
-		c.setRadius(5);
-		c.setOrigin({ 5, 5 });
+		c.setRadius(rand()%10+5);
+		//c.setOrigin({ 5, 5 });
 		c.setFillColor(Color::Magenta);
+		r.size = { c.getRadius()*2,  c.getRadius() *2};
 		pushDraw(&c);
 	}
 	virtual ~Actor() {
@@ -40,6 +40,7 @@ public:
 		else if (pos.y > 600)
 			pos.y = 0;
 
+		this->r.pos = pos;
 		c.setFillColor(Color::Green);
 		c.setPosition(pos);
 	}
@@ -69,21 +70,6 @@ vector<Actor *> orderByDistance(vector<Actor *> ls, Vector location) {
 
 
 
-void quadBased(E::Quad *root) {
-	for (auto &i : E::insts){
-		E::tick(root, i);
-	}
-
-	for (auto q : E::quads) {
-		auto p = q->rc.startPoint,
-			s = q->rc.endPoint;
-		drawDebugLine(p, Vector{ p.x, s.y }, Color::Red);
-		drawDebugLine(p, Vector{ s.x, p.y }, Color::Red);
-		drawDebugLine(s, Vector{ s.x, p.y }, Color::Red);
-		drawDebugLine(s, Vector{ p.x, s.y }, Color::Red);
-	}
-}
-
 void distanceBased() {
 	for (size_t x = 0; x < acts.size(); x++) {
 		for (size_t y = x + 1; y < acts.size(); y++) {
@@ -97,11 +83,9 @@ void distanceBased() {
 	}
 }
 int main() {
-	E::Quad *root = new E::Quad({ { 100, 100 }, {500, 500} }, 4);
-	//E::Quad::mountTree(root);
+	E::Quad *root = new E::Quad({ { 100, 100 }, {400, 400} }, 4);
 	for (size_t i = 0; i < 6; i++) {
 		acts.push_back(new Actor);
-		//E::Quad::insert(root, acts.back());
 	}
 
 	while (true) {
@@ -112,10 +96,11 @@ int main() {
 		for (int x = 0; x < acts.size(); x++) {
 			if (x == 0) {
 				acts[0]->pos = mousePos;
+				acts[0]->pos = acts[0]->pos - acts[0]->r.size;
 			}
 			acts[x]->tick();
 		}
-		quadBased(root);
+		E::tick(root);
 		if (st.f >= 60) {
 			cout << st.ms.getElapsedTime().asMilliseconds() << ", " << st.col << endl;
 			st.f = 0;

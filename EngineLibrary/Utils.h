@@ -52,7 +52,12 @@ public:
 	Vector operator*(double f) {
 		return { x * f, y * f };
 	}
-	
+	Vector operator+(double f) {
+		return { x + f, y + f };
+	}
+	Vector operator-(double f) {
+		return { x - f, y - f };
+	}
 
 	inline double angle() {
 		const double deg2rad = 180.f / 3.1415926;
