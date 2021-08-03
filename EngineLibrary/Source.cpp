@@ -53,7 +53,7 @@ int main() {
 
 
 	Actor *a;
-	for (size_t i = 0; i < 200; i++) {
+	for (size_t i = 0; i < 800; i++) {
 		 a = (Actor*)(Class*)instantiate(new Actor);
 	}
 	while (true) {

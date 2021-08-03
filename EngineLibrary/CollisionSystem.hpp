@@ -114,7 +114,7 @@ public:
 	
 
 	Collision() {
-		root = new Quad({ { 0, 0}, {800, 600} }, 3);		
+		root = new Quad({ { 0, 0}, {800, 600} }, 2);		
 		Quad::build(root, tQuads);
 	}
 	void tick() {
@@ -132,9 +132,9 @@ public:
 							if (Boundbox::inBoundry(instA->bb, instB->bb)) {
 								instA->collision(instB);
 								instB->collision(instA);
+								col++;
 							}
 						}
-						col++;
 						quad->is.push_back(instA);
 					}
 				}
