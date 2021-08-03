@@ -18,16 +18,22 @@ using namespace std;
 
 
 
-class Class;
-
+class Class {
+public:
+	Class() {}
+	virtual ~Class() {}
+	virtual void tick() {}
+};
 class GarbageSystem :
 	public Singleton<GarbageSystem> {
 public:
 	list<Var<Class>> objects, toDelete;
 	void tick() {
 		for (auto &vo : objects){
-			if (vo.refs() <= 1)
+			if (!vo && vo.refs() <= 1)
 				toDelete.push_back(vo);
+			else
+				vo->tick();
 		}
 
 		for (auto &d : toDelete)
@@ -35,11 +41,14 @@ public:
 		toDelete.clear();
 	}
 };
-class Class {
-public:
-	Class() {}
-	virtual ~Class() {}
-};
+Var<Class> instantiate(Class *i) {
+	Var<Class> out;
+	out = i;
+	GarbageSystem::instance().objects.push_back(out);
+	return out;
+}
+
+
 
 class Engine :
 	public Singleton<Engine> {
@@ -47,14 +56,14 @@ public:
 	World &world = World::instance();
 	GarbageSystem &gs = GarbageSystem::instance();
 	Navigation &nav = Navigation::instance();
-	CollisionSystem &colSys = CollisionSystem::instance();
+	Collision &col = Collision::instance();
 	Engine() {
 		nav.config({ 10, 10 });
 		nav.meshByImage(World::instance().getImage());
 	}
 	void tick() {
 		gs.tick();
-		colSys.tick();
+		col.tick();
 		win.tick();
 	}
 };

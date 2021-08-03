@@ -50,6 +50,7 @@ protected:
             rs.setFillColor(c);
             rs.setPosition(pos);
             rs.setSize(size);
+            rs.setOutlineThickness(-1);
             rwin->draw(rs);
         }
     };

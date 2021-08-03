@@ -19,15 +19,6 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\Dependencies\SFML-2.5.1\include\SFML\Audio.hpp" />
-    <ClInclude Include="..\Dependencies\SFML-2.5.1\include\SFML\Config.hpp" />
-    <ClInclude Include="..\Dependencies\SFML-2.5.1\include\SFML\GpuPreference.hpp" />
-    <ClInclude Include="..\Dependencies\SFML-2.5.1\include\SFML\Graphics.hpp" />
-    <ClInclude Include="..\Dependencies\SFML-2.5.1\include\SFML\Main.hpp" />
-    <ClInclude Include="..\Dependencies\SFML-2.5.1\include\SFML\Network.hpp" />
-    <ClInclude Include="..\Dependencies\SFML-2.5.1\include\SFML\OpenGL.hpp" />
-    <ClInclude Include="..\Dependencies\SFML-2.5.1\include\SFML\System.hpp" />
-    <ClInclude Include="..\Dependencies\SFML-2.5.1\include\SFML\Window.hpp" />
     <ClInclude Include="CollisionSystem.hpp" />
     <ClInclude Include="jEngine.hpp" />
     <ClInclude Include="jwindow.hpp" />

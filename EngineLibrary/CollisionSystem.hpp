@@ -2,65 +2,22 @@
 #define _collisionsystem
 #include "jEngine.hpp"
 
-namespace E {
-	class Quad;
-	static list<struct Instance *> insts;
-	static list<Quad *> quads;
+struct Boundbox {
+	Vector pos, size, center;
+	Boundbox() {
+		center = getCenter();
+	}
+	Boundbox(Vector pos, Vector size) {
+		this->pos = pos;
+		this->size = size;
+		center = getCenter();
+	}
+	inline Vector &getCenter() {
+		return center = pos + (size / 2.f);
+	}
 
-	struct Rect {
-		Vector pos, size, center;
-		Rect() {}
-		Rect(Vector pos, Vector size) :
-			pos(pos),
-			size(size){
-			center = getCenter();			
-		}
-		inline Vector &getCenter() {
-			return center = pos + (size /2.f);
-		}
-	};
-	struct Instance {
-		Rect r;
-		Instance(){
-			insts.push_back(this);
-		}
-		virtual ~Instance() {
-			insts.remove(this);
-		}
-		virtual void collision(Instance *o) {
-		}
-	};
-	class Quad {
-	public:
-		list<Instance *> is;
-		Rect rc;
-		Quad *root, *tr, *br, *bl, *tl;
-		unsigned int subDivisions;
-		Quad(Rect rect, unsigned int subDivisions = 1, Quad *root = nullptr) {
-			this->subDivisions = subDivisions;
-			rc = rect;
-			tr = br = bl = tl = nullptr;
-			quads.push_back(this);
-		}
-
-		inline Quad* newTr() {
-			return tr = new Quad({ {rc.getCenter().x, rc.pos.y}, rc.size / 2.f }, subDivisions - 1, this);
-		}
-		inline Quad* newTl() {
-			return tl = new Quad({ rc.pos, rc.size/2.f }, subDivisions - 1, this);
-		}
-		inline Quad* newBr() {
-			return br = new Quad({ rc.getCenter(), rc.size/2.f }, subDivisions - 1, this);
-		}
-		inline Quad* newBl() {
-			return bl = new Quad({ {rc.pos.x, rc.getCenter().y} ,  rc.size / 2.f }, subDivisions - 1, this);
-		}
-	};
-
-	
-
-	static inline bool inBoundry(Rect &a, Rect &b) {
-		auto 
+	static inline bool inBoundry(Boundbox &a, Boundbox &b) {
+		auto
 			ar = a.pos + a.size,
 			br = b.pos + b.size;
 
@@ -69,43 +26,74 @@ namespace E {
 			a.pos.y < br.y &&
 			ar.y > b.pos.y;
 	}
-	static void build(Quad *q) {
+};
+class Overlap {
+public:
+	Boundbox bb;
+	Vector *targetPos;
+	Overlap();
+	virtual ~Overlap();
+	virtual void collision(Overlap *o) {}
+};
+
+
+class Quad {
+public:
+	list<Overlap *> is;
+	Boundbox bb;
+	Quad *root, *tr, *br, *bl, *tl;
+	unsigned int subDivisions;
+	Quad(Boundbox bb, unsigned int subDivisions = 1, Quad *root = nullptr) {
+		this->subDivisions = subDivisions;
+		this->bb = bb;
+		tr = br = bl = tl = nullptr;
+	}
+
+	inline Quad *newTr() {
+		return tr = new Quad({ {bb.getCenter().x, bb.pos.y}, bb.size / 2.f }, subDivisions - 1, this);
+	}
+	inline Quad *newTl() {
+		return tl = new Quad({ bb.pos, bb.size / 2.f }, subDivisions - 1, this);
+	}
+	inline Quad *newBr() {
+		return br = new Quad({ bb.getCenter(), bb.size / 2.f }, subDivisions - 1, this);
+	}
+	inline Quad *newBl() {
+		return bl = new Quad({ {bb.pos.x, bb.getCenter().y} ,  bb.size / 2.f }, subDivisions - 1, this);
+	}
+
+
+
+	static void build(Quad *q, list<Quad*> &totalQuads) {
 		const int sub = q->subDivisions - 1;
-		q->rc.getCenter();
+		q->bb.getCenter();
+		totalQuads.push_back(q);
 		if (sub >= 0) {
 			if (!q->bl) {
 				q->newBl();
-				build(q->bl);
+				build(q->bl, totalQuads);
 			}
 			if (!q->br) {
 				q->newBr();
-				build(q->br);
+				build(q->br, totalQuads);
 			}
 			if (!q->tl) {
 				q->newTl();
-				build(q->tl);
+				build(q->tl, totalQuads);
 			}
 			if (!q->tr) {
 				q->newTr();
-				build(q->tr);
+				build(q->tr, totalQuads);
 			}
-
 		}
 	}
-	static bool search(Quad *q, Instance *i, list<Quad *> &qs) {
-		if (inBoundry(q->rc, i->r)) {			
-			if(q->subDivisions > 1){
-				if (search(q->tr, i, qs));
-				else if (search(q->bl, i, qs));
-				
-				if (search(q->br, i, qs));
-				else if (search(q->tl, i, qs));
-			}
-			else if (q->subDivisions == 1){ //leafCheck
+	static bool search(Quad *q, Overlap *i, list<Quad *> &qs) {
+		if (Boundbox::inBoundry(q->bb, i->bb)) {
+			if (q->subDivisions > 0) {
 				search(q->tr, i, qs);
 				search(q->bl, i, qs);
 				search(q->br, i, qs);
-				search(q->tl, i, qs);				
+				search(q->tl, i, qs);
 			}
 			else
 				qs.push_back(q);
@@ -116,34 +104,60 @@ namespace E {
 	}
 };
 
-class CollisionSystem : 
-	public Singleton<CollisionSystem>{
+class Collision :
+	public Singleton<Collision>{
 public:
-	E::Quad *root = nullptr;
-	CollisionSystem() {
-		root = new E::Quad({ { 0, 0}, {800, 600} }, 3);
-		E::build(root);
+	Quad *root = nullptr;
+	list<Quad *> tQuads;
+	list<Overlap *> tOverlaps;
+	Clock c;
+	
+
+	Collision() {
+		root = new Quad({ { 0, 0}, {800, 600} }, 3);		
+		Quad::build(root, tQuads);
 	}
 	void tick() {
-		for (auto &i : E::insts) {
-			list<E::Quad *> qs;
-			if (E::search(root, i, qs)) {
-				for (auto &qq : qs) {
-					if (qq) {
-						auto &isl = qq->is;
-						for (auto ins : isl) {
-							if (inBoundry(ins->r, i->r)) {
-								i->collision(ins);
-								ins->collision(i);
+		int col = 0;
+		c.restart();
+		for (auto &instA : tOverlaps) {
+			if (instA->targetPos)
+				instA->bb.pos = *instA->targetPos;
+			list<Quad *> possibleQuads;
+			if (Quad::search(root, instA, possibleQuads)) {
+				for (auto &quad : possibleQuads) {
+					if (quad) {
+						auto &instList = quad->is;
+						for (auto instB : instList) {
+							if (Boundbox::inBoundry(instA->bb, instB->bb)) {
+								instA->collision(instB);
+								instB->collision(instA);
 							}
 						}
-						qq->is.push_back(i);
+						col++;
+						quad->is.push_back(instA);
 					}
 				}
 			}
 		}
-		for (auto &q : E::quads)
+		for (auto &q : tQuads) {
+			//if (q->is.size()) {
+			//	for (auto &i : q->is){
+			//		drawDebugLine(q->bb.center, i->bb.getCenter(), Color::White);
+			//	}
+			//	drawDebugQuad(q->bb.pos, q->bb.size, Color(255, 0, 0, 50));
+			//}
 			q->is.clear();
+		}
+
+		cout << c.getElapsedTime().asMilliseconds() << " " << col <<endl;
 	}
 };
+
+Overlap::Overlap() {
+	Collision::instance().tOverlaps.push_back(this);
+}
+Overlap::~Overlap() {
+	Collision::instance().tOverlaps.remove(this);
+}
 #endif // !_collisionsystem
