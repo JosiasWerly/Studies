@@ -3,7 +3,6 @@
 #include "jEngine.hpp"
 
 namespace E {
-	static int collTests = 0;
 	class Quad;
 	static list<struct Instance *> insts;
 	static list<Quad *> quads;
@@ -34,7 +33,6 @@ namespace E {
 	class Quad {
 	public:
 		list<Instance *> is;
-
 		Rect rc;
 		Quad *root, *tr, *br, *bl, *tl;
 		unsigned int subDivisions;
@@ -58,6 +56,7 @@ namespace E {
 			return bl = new Quad({ {rc.pos.x, rc.getCenter().y} ,  rc.size / 2.f }, subDivisions - 1, this);
 		}
 	};
+
 	
 
 	static inline bool inBoundry(Rect &a, Rect &b) {
@@ -93,97 +92,6 @@ namespace E {
 
 		}
 	}
-
-	static void insert(Quad *q, Instance *n) {
-		if (inBoundry(q->rc, n->r)) {
-			const int sub = q->subDivisions - 1;
-			if (sub != 0) {
-				auto &c = q->rc.getCenter();
-				auto &p = n->r.pos;
-				auto ep = n->r.pos + n->r.size;
-				Quad *tq = q;
-
-				if (p.x < c.x) {
-					if (p.y < c.y) {
-						if (!q->tl)
-							q->newTl();
-						insert(q->tl, n);
-					}
-					else {
-						if (!q->bl)
-							q->newBl();
-						insert(q->bl, n);
-					}
-				}
-				else {
-					if (p.y < c.y) {
-						if (!q->tr)
-							q->newTr();
-						insert(q->tr, n);
-					}
-					else {
-						if (!q->br)
-							q->newBr();
-						insert(q->br, n);
-					}
-				}
-				if (ep.x < c.x) {
-					if (ep.y < c.y) {
-						if (!q->tl)
-							q->newTl();
-						insert(q->tl, n);
-					}
-					else {
-						if (!q->bl)
-							q->newBl();
-						insert(q->bl, n);
-					}
-				}
-				else {
-					if (ep.y < c.y) {
-						if (!q->tr)
-							q->newTr();
-						insert(q->tr, n);
-					}
-					else {
-						if (!q->br)
-							q->newBr();
-						insert(q->br, n);
-					}
-				}
-			}
-			else {
-				for (auto &s : q->is){
-					if (n != s && inBoundry(s->r, n->r)) {
-						collTests++;
-						s->collision(n);
-						n->collision(s);
-					}
-				}
-				q->is.push_back(n);
-			}
-		}
-	}
-	/*static Quad *search(Quad *q, Instance *i) {
-		if (inBoundry(q->rc, i->r)) {
-			if (q->subDivisions != 0) {
-				Quad *out = nullptr;
-				if (out = search(q->tr, i))
-					return out;
-				else if (out = search(q->br, i))
-					return out;
-				if (out = search(q->bl, i))
-					return out;
-				else if (out = search(q->tl, i))
-					return out;
-			}
-			else {
-				return q;
-			}
-		}
-		return nullptr;
-	}*/
-
 	static bool search(Quad *q, Instance *i, list<Quad *> &qs) {
 		if (inBoundry(q->rc, i->r)) {			
 			if(q->subDivisions > 1){
@@ -206,20 +114,27 @@ namespace E {
 		else
 			return false;
 	}
-	static void tick(Quad *q) {
-		collTests = 0;
+};
+
+class CollisionSystem : 
+	public Singleton<CollisionSystem>{
+public:
+	E::Quad *root = nullptr;
+	CollisionSystem() {
+		root = new E::Quad({ { 0, 0}, {800, 600} }, 3);
+		E::build(root);
+	}
+	void tick() {
 		for (auto &i : E::insts) {
-			list<Quad *> qs;
-			if (search(q, i, qs)) {
-				for (auto &qq : qs){
+			list<E::Quad *> qs;
+			if (E::search(root, i, qs)) {
+				for (auto &qq : qs) {
 					if (qq) {
 						auto &isl = qq->is;
 						for (auto ins : isl) {
 							if (inBoundry(ins->r, i->r)) {
 								i->collision(ins);
 								ins->collision(i);
-								collTests++;
-								//drawDebugLine(i->r.getCenter(), ins->r.getCenter(), Color::Red);
 							}
 						}
 						qq->is.push_back(i);
@@ -227,88 +142,8 @@ namespace E {
 				}
 			}
 		}
-		for (auto &q : quads) {
-			if (q->is.size()) {
-				drawDebugQuad(q->rc.pos, q->rc.size, Color(int(q->rc.pos.x)%255, int(q->rc.pos.y) % 255, 0, 100));
-				//for (auto &i : q->is){
-				//	drawDebugLine(q->rc.center, i->r.getCenter(), Color::White);
-				//}
-			}
+		for (auto &q : E::quads)
 			q->is.clear();
-		}
-
 	}
 };
-
 #endif // !_collisionsystem
-
-//static void insert(Quad *q, Instance *n) {
-//	if (inBoundry(q->rc, n->r)) {
-//		const int sub = q->subDivisions - 1;
-//		if (sub != 0) {
-//			auto &c = q->rc.getCenter();
-//			auto &p = n->r.pos;
-//			auto ep = n->r.pos + n->r.size;
-//			Quad *tq = q;
-//
-//			if (p.x < c.x) {
-//				if (p.y < c.y) {
-//					if (!q->tl)
-//						q->newTl();
-//					insert(q->tl, n);
-//				}
-//				else {
-//					if (!q->bl)
-//						q->newBl();
-//					insert(q->bl, n);
-//				}
-//			}
-//			else {
-//				if (p.y < c.y) {
-//					if (!q->tr)
-//						q->newTr();
-//					insert(q->tr, n);
-//				}
-//				else {
-//					if (!q->br)
-//						q->newBr();
-//					insert(q->br, n);
-//				}
-//			}
-//			if (ep.x < c.x) {
-//				if (ep.y < c.y) {
-//					if (!q->tl)
-//						q->newTl();
-//					insert(q->tl, n);
-//				}
-//				else {
-//					if (!q->bl)
-//						q->newBl();
-//					insert(q->bl, n);
-//				}
-//			}
-//			else {
-//				if (ep.y < c.y) {
-//					if (!q->tr)
-//						q->newTr();
-//					insert(q->tr, n);
-//				}
-//				else {
-//					if (!q->br)
-//						q->newBr();
-//					insert(q->br, n);
-//				}
-//			}
-//		}
-//		else {
-//			for (auto &s : q->is) {
-//				if (n != s && inBoundry(s->r, n->r)) {
-//					collTests++;
-//					s->collision(n);
-//					n->collision(s);
-//				}
-//			}
-//			q->is.push_back(n);
-//		}
-//	}
-//}

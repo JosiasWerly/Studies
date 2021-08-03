@@ -6,11 +6,7 @@
 
 
 
-struct Stats {
-	unsigned int f = 0, col = 0;
-	Clock ms;
-};
-Stats st;
+
 class Actor : public E::Instance{
 public:
 	Vector pos, dir;
@@ -51,60 +47,12 @@ public:
 		c.setFillColor(Color::Red);
 	}
 };
-static vector<Actor *> acts;
-
-vector<Actor *> orderByDistance(vector<Actor *> ls, Vector location) {
-	vector<Actor *> out;
-	while (ls.size()) {
-		std::pair<Actor *, double> p = { nullptr, 0 };
-		for (auto &a : ls) {
-			double nDis = Vector::distance(location, a->pos);
-			if (nDis >= p.second)
-				p = { a, nDis };
-		}
-		out.push_back(p.first);
-		out.erase(out.begin());
-	}
-	return out;
-}
-
-
-
-void distanceBased() {
-	for (size_t x = 0; x < acts.size(); x++) {
-		for (size_t y = x + 1; y < acts.size(); y++) {
-			if (E::inBoundry(acts[x]->r, acts[y]->r)) {
-				acts[x]->onBeginOverlap(acts[y]);
-				acts[y]->onBeginOverlap(acts[x]);
-			}
-			st.col++;
-		}
-	}
-}
 int main() {
-	E::Quad *root = new E::Quad({ { 50, 50 }, {700, 500} }, 4);
-	E::build(root);
 	for (size_t i = 0; i < 800; i++) {
-		acts.push_back(new Actor);
+		new Actor;
 	}
 
 	while (true) {
-
-		
-		st.ms.restart();
-
-		for (int x = 0; x < acts.size(); x++) {
-			if (x == 0) {
-				acts[0]->pos = mousePos;
-				acts[0]->pos = acts[0]->pos - acts[0]->r.size;
-			}
-			acts[x]->tick();
-		}
-		E::tick(root);
-		//distanceBased();
-		st.col = E::collTests;
-		cout << st.ms.getElapsedTime().asMilliseconds() << ", " << st.col << endl;
-		st.col = 0;
 		e.tick();
 	}
 	return 0;
