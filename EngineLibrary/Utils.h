@@ -24,7 +24,7 @@ public:
 		y = ::round(y * 1000.0) / 1000.0;
 	}
 	double length() {
-		return sqrtf(powf(x, 2)+ powf(y, 2));
+		return sqrt(pow(x, 2)+ pow(y, 2));
 	}
 	Vector normalize() {
 		Vector out = *this;
@@ -61,7 +61,7 @@ public:
 
 	inline double angle() {
 		const double deg2rad = 180.f / 3.1415926;
-		double out = atan2f(y, x) * deg2rad;
+		double out = atan2(y, x) * deg2rad;
 		out = out <= 0 ? out + 360 : out;
 		//return atan2f(y, x) * deg2rad;
 		return out;
