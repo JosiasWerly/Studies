@@ -29,7 +29,7 @@ public:
 		popDraw(&c);
 	}
 	void tick() {
-		//pos = pos + dir;
+		pos = pos + dir;
 		if (pos.x < 0)
 			pos.x = 800;
 		else if (pos.x > 800)
@@ -50,22 +50,18 @@ public:
 };
 int main() {
 	
-	auto begIt = e.col.tQuads.begin();
-	auto it = begIt;
-
-
 	Actor *a;
-	for (size_t i = 0; i < 10; i++) {
-		Vector initPos;
-		if (it != e.col.tQuads.end()) {
-			initPos = (*it)->bb.center;
-			it++;
-		}
-		else {
-			it = begIt;
-		}
+	for (size_t i = 0; i < 1000; i++) {
+		//Vector initPos;
+		//if (it != e.col.tQuads.end()) {
+		//	initPos = (*it)->bb.center;
+		//	it++;
+		//}
+		//else {
+		//	it = begIt;
+		//}
 		 a = (Actor*)(Class*)instantiate(new Actor);
-		 a->pos = initPos - a->bb.size/2.f;
+		 //a->pos = initPos - a->bb.size/2.f;
 	}
 	while (true) {
 		a->pos = mousePos;

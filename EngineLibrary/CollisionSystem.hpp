@@ -91,20 +91,25 @@ public:
 			}
 		}
 	}
-	static bool search(Quad *q, Overlap *i, set<Quad *> &qs) {
+	static bool search(Quad *q, Overlap *i, set<Quad *> &qs, Quad *&parent) {
 		if (Boundbox::inBoundry(q->bb, i->bb)) {
+			qs.insert(q);
 			if (q->subDivisions > 0) {
-				search(q->tr, i, qs);
-				search(q->bl, i, qs);
-				search(q->br, i, qs);
-				search(q->tl, i, qs);
+				int v = 0;
+				v+=search(q->tr, i, qs, parent);
+				v+=search(q->bl, i, qs, parent);
+				v+=search(q->br, i, qs, parent);
+				v+=search(q->tl, i, qs, parent);
+				if (v > 2)
+					parent = q;
 			}
-			else
+			else {
+				parent = q;
 				qs.insert(q);
+			}
 			return true;
 		}
-		else
-			return false;
+		return false;
 	}
 };
 
@@ -124,13 +129,14 @@ public:
 	void tick() {
 		int col = 0;
 		c.restart();
+		map<Quad *, set<Overlap *>> os;
 		for (auto &instA : tOverlaps) {
 			if (instA->targetPos)
 				instA->bb.pos = *instA->targetPos;
-			set<Quad *> possibleQuads;
-			if (Quad::search(root, instA, possibleQuads)) {
-
-				for (auto &quad : possibleQuads) {
+			set<Quad *> containedQuads;
+			Quad *parent = nullptr;
+			if (Quad::search(root, instA, containedQuads, parent)) {
+				for (auto &quad : containedQuads) {
 					if (quad) {
 						std::set<Overlap*> &newCollisions = quad->is;
 						for (auto &instB : newCollisions) {
@@ -140,18 +146,17 @@ public:
 								col++;
 							}
 						}
-						quad->is.insert(instA);
 					}
 				}
+				parent->is.insert(instA);
 			}
 		}
 		for (auto &q : tQuads) {
-			if (q->is.size()) {
-				for (auto &i : q->is){
-					drawDebugLine(q->bb.pos, i->bb.getCenter(), Color::White);
-				}
-				drawDebugQuad(q->bb.pos, q->bb.size, Color(255, 0, 0, 50));
-			}
+			//if (q->is.size()) {
+			//	for (auto &i : q->is)
+			//		drawDebugLine(q->bb.center, i->bb.getCenter(), Color::White);
+			//	drawDebugQuad(q->bb.pos, q->bb.size, Color(255, 0, 0, 50));
+			//}
 			q->is.clear();
 		}
 

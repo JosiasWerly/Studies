@@ -8,11 +8,6 @@
     <ClInclude Include="CollisionSystem.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="sfml">
-      <UniqueIdentifier>{991be417-4089-4c99-b0fc-869db8b843cd}</UniqueIdentifier>
-    </Filter>
-  </ItemGroup>
-  <ItemGroup>
     <ClCompile Include="Source.cpp" />
   </ItemGroup>
 </Project>
