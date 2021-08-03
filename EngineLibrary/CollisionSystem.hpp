@@ -93,15 +93,22 @@ public:
 	}
 	static bool search(Quad *q, Overlap *i, set<Quad *> &qs, Quad *&parent) {
 		if (Boundbox::inBoundry(q->bb, i->bb)) {
-			qs.insert(q);
-			if (q->subDivisions > 0) {
+			if (q->subDivisions > 1) {
+				search(q->tr, i, qs, parent);
+				search(q->bl, i, qs, parent);
+				search(q->br, i, qs, parent);
+				search(q->tl, i, qs, parent);				
+			}
+			else if(q->subDivisions == 1){
 				int v = 0;
-				v+=search(q->tr, i, qs, parent);
-				v+=search(q->bl, i, qs, parent);
-				v+=search(q->br, i, qs, parent);
-				v+=search(q->tl, i, qs, parent);
-				if (v > 2)
+				v += search(q->tr, i, qs, parent);
+				v += search(q->bl, i, qs, parent);
+				v += search(q->br, i, qs, parent);
+				v += search(q->tl, i, qs, parent);
+				if (v > 2) {
+					qs.insert(q);
 					parent = q;
+				}
 			}
 			else {
 				parent = q;
@@ -136,8 +143,10 @@ public:
 			set<Quad *> containedQuads;
 			Quad *parent = nullptr;
 			if (Quad::search(root, instA, containedQuads, parent)) {
+				//drawDebugLine(parent->bb.center, instA->bb.getCenter(), Color::Magenta);
 				for (auto &quad : containedQuads) {
 					if (quad) {
+						//drawDebugLine(quad->bb.center, instA->bb.getCenter(), Color::Green);
 						std::set<Overlap*> &newCollisions = quad->is;
 						for (auto &instB : newCollisions) {
 							if (Boundbox::inBoundry(instA->bb, instB->bb)) {
@@ -152,11 +161,10 @@ public:
 			}
 		}
 		for (auto &q : tQuads) {
-			//if (q->is.size()) {
-			//	for (auto &i : q->is)
-			//		drawDebugLine(q->bb.center, i->bb.getCenter(), Color::White);
-			//	drawDebugQuad(q->bb.pos, q->bb.size, Color(255, 0, 0, 50));
-			//}
+			if (q->is.size()) {
+				//for (auto &i : q->is) drawDebugLine(q->bb.center, i->bb.getCenter(), Color::White);
+				//drawDebugQuad(q->bb.pos, q->bb.size, Color(255, 0, 0, 50));
+			}
 			q->is.clear();
 		}
 
