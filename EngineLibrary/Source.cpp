@@ -51,7 +51,7 @@ public:
 int main() {
 	
 	Actor *a;
-	for (size_t i = 0; i < 1000; i++) {
+	for (size_t i = 0; i < 800; i++) {
 		//Vector initPos;
 		//if (it != e.col.tQuads.end()) {
 		//	initPos = (*it)->bb.center;

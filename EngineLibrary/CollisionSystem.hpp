@@ -91,27 +91,15 @@ public:
 			}
 		}
 	}
-	static bool search(Quad *q, Overlap *i, set<Quad *> &qs, Quad *&parent) {
+	static bool search(Quad *q, Overlap *i, set<Quad *> &qs) {
 		if (Boundbox::inBoundry(q->bb, i->bb)) {
-			if (q->subDivisions > 1) {
-				search(q->tr, i, qs, parent);
-				search(q->bl, i, qs, parent);
-				search(q->br, i, qs, parent);
-				search(q->tl, i, qs, parent);				
+			if (q->subDivisions > 0) {
+				search(q->tr, i, qs);
+				search(q->bl, i, qs);
+				search(q->br, i, qs);
+				search(q->tl, i, qs);
 			}
-			else if(q->subDivisions == 1){
-				int v = 0;
-				v += search(q->tr, i, qs, parent);
-				v += search(q->bl, i, qs, parent);
-				v += search(q->br, i, qs, parent);
-				v += search(q->tl, i, qs, parent);
-				if (v > 2) {
-					qs.insert(q);
-					parent = q;
-				}
-			}
-			else {
-				parent = q;
+			else {				
 				qs.insert(q);
 			}
 			return true;
@@ -130,7 +118,7 @@ public:
 	
 
 	Collision() {
-		root = new Quad({ { 0, 0}, {800, 600} }, 3);		
+		root = new Quad({ { 0, 0}, {800, 600} }, 4);		
 		Quad::build(root, tQuads);
 	}
 	void tick() {
@@ -141,23 +129,32 @@ public:
 			if (instA->targetPos)
 				instA->bb.pos = *instA->targetPos;
 			set<Quad *> containedQuads;
-			Quad *parent = nullptr;
-			if (Quad::search(root, instA, containedQuads, parent)) {
-				//drawDebugLine(parent->bb.center, instA->bb.getCenter(), Color::Magenta);
-				for (auto &quad : containedQuads) {
-					if (quad) {
-						//drawDebugLine(quad->bb.center, instA->bb.getCenter(), Color::Green);
-						std::set<Overlap*> &newCollisions = quad->is;
-						for (auto &instB : newCollisions) {
-							if (Boundbox::inBoundry(instA->bb, instB->bb)) {
+			if (Quad::search(root, instA, containedQuads)) {				
+				if (containedQuads.size() == 1) {
+					auto &quad = *containedQuads.begin();
+					for (auto &instB : quad->is) {
+						if (Boundbox::inBoundry(instA->bb, instB->bb)) {
+							instA->collision(instB);
+							instB->collision(instA);
+							col++;
+						}
+					}
+					quad->is.insert(instA);
+				}
+				else {
+					set<Overlap *> checked;
+					for (auto &quad : containedQuads) {
+						for (auto &instB : quad->is) {
+							if (Boundbox::inBoundry(instA->bb, instB->bb) && !checked.count(instB)) {
 								instA->collision(instB);
 								instB->collision(instA);
+								checked.insert(instB);
 								col++;
 							}
 						}
+						quad->is.insert(instA);
 					}
 				}
-				parent->is.insert(instA);
 			}
 		}
 		for (auto &q : tQuads) {
