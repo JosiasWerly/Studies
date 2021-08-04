@@ -27,21 +27,37 @@ struct Boundbox {
 			ar.y > b.pos.y;
 	}
 };
-class Overlap {
-public:
-	Boundbox bb;
+class OverlapInstance {
 	Vector *targetPos;
-	Overlap();
-	virtual ~Overlap();
-	virtual void collision(Overlap *o) {
+	Boundbox bb;
+	set<string> overlapLayer;
+	list<OverlapInstance *> overlaping;
 
+	friend class Quad;
+	friend class QuadTree;
+public:
+	void config(Boundbox bb, Vector *pos) {
+		this->bb = bb;
+		this->targetPos = pos;
+	}
+	inline set<string> &getLayers() {
+		return overlapLayer; 
+	}
+	void setLayer(bool enable, string layerName);
+
+
+	inline void preProcess() {
+		if (targetPos)
+			bb.pos = *targetPos;
+		overlaping.clear();
+	}
+	virtual void collision(OverlapInstance *o) {
+		overlaping.push_back(o);
 	}
 };
-
-
 class Quad {
 public:
-	set<Overlap *> is;
+	set<OverlapInstance *> is;
 	Boundbox bb;
 	Quad *root, *tr, *br, *bl, *tl;
 	unsigned int subDivisions;
@@ -65,9 +81,6 @@ public:
 	inline Quad *newBl() {
 		return bl = new Quad({ {bb.pos.x, bb.getCenter().y} ,  bb.size / 2.f }, subDivisions - 1, this);
 	}
-
-
-
 	static void build(Quad *q, set<Quad*> &totalQuads) {
 		const int sub = q->subDivisions - 1;
 		q->bb.getCenter();
@@ -91,7 +104,7 @@ public:
 			}
 		}
 	}
-	static bool search(Quad *q, Overlap *i, set<Quad *> &qs) {
+	static bool search(Quad *q, OverlapInstance *i, set<Quad *> &qs) {
 		if (Boundbox::inBoundry(q->bb, i->bb)) {
 			if (q->subDivisions > 0) {
 				search(q->tr, i, qs);
@@ -107,29 +120,28 @@ public:
 		return false;
 	}
 };
-
-class Collision :
-	public Singleton<Collision>{
-public:
+struct QuadTree{
 	Quad *root = nullptr;
 	set<Quad *> tQuads;
-	set<Overlap *> tOverlaps;
+	set<OverlapInstance *> tOverlaps;
 	Clock c;
-	
 
-	Collision() {
-		root = new Quad({ { 0, 0}, {800, 600} }, 4);		
+	void buildTree(Vector pos, Vector size, unsigned int subDivisions){
+		for (auto &q : tQuads)
+			delete q;
+		tQuads.clear();
+
+		root = new Quad({ pos, size }, subDivisions);
 		Quad::build(root, tQuads);
 	}
-	void tick() {
+	inline void processTree() {
 		int col = 0;
 		c.restart();
-		map<Quad *, set<Overlap *>> os;
+		map<Quad *, set<OverlapInstance *>> os;
 		for (auto &instA : tOverlaps) {
-			if (instA->targetPos)
-				instA->bb.pos = *instA->targetPos;
+			instA->preProcess();
 			set<Quad *> containedQuads;
-			if (Quad::search(root, instA, containedQuads)) {				
+			if (Quad::search(root, instA, containedQuads)) {
 				if (containedQuads.size() == 1) {
 					auto &quad = *containedQuads.begin();
 					for (auto &instB : quad->is) {
@@ -142,7 +154,7 @@ public:
 					quad->is.insert(instA);
 				}
 				else {
-					set<Overlap *> checked;
+					set<OverlapInstance *> checked;
 					for (auto &quad : containedQuads) {
 						for (auto &instB : quad->is) {
 							if (Boundbox::inBoundry(instA->bb, instB->bb) && !checked.count(instB)) {
@@ -157,22 +169,51 @@ public:
 				}
 			}
 		}
+
+
 		for (auto &q : tQuads) {
-			if (q->is.size()) {
-				//for (auto &i : q->is) drawDebugLine(q->bb.center, i->bb.getCenter(), Color::White);
-				//drawDebugQuad(q->bb.pos, q->bb.size, Color(255, 0, 0, 50));
-			}
+			if (q->subDivisions == 0)
+				drawDebugQuad(q->bb.pos, q->bb.size, Color(100, 0, 0, 50));
 			q->is.clear();
 		}
 
-		cout << c.getElapsedTime().asMilliseconds() << " " << col <<endl;
+		cout << c.getElapsedTime().asMilliseconds() << " " << col << endl;
 	}
 };
+class Collision :
+	public Singleton<Collision>{
+public:
+	map<string, QuadTree *> quadTrees;
 
-Overlap::Overlap() {
-	Collision::instance().tOverlaps.insert(this);
-}
-Overlap::~Overlap() {
-	Collision::instance().tOverlaps.erase(this);
+	Collision() {
+	}
+
+	void addQuadTree(string profile, Vector pos, Vector size, unsigned int subDivisions) {
+		QuadTree *qt = new QuadTree;
+		qt->buildTree(pos, size, subDivisions);
+		quadTrees[profile] = qt;
+	}
+	QuadTree *getQuadTree(string profile) {
+		if (quadTrees.count(profile)) {
+			return quadTrees[profile];
+		}
+		return nullptr;
+	}
+	void tick() {
+		for (auto &q : quadTrees)
+			q.second->processTree();
+	}
+};
+void OverlapInstance::setLayer(bool enable, string layerName) {
+	auto &c = Collision::instance();
+	if (enable && !overlapLayer.count(layerName)) {
+		c.getQuadTree(layerName)->tOverlaps.insert(this);
+		overlapLayer.insert(layerName);
+
+	}
+	else if (overlapLayer.count(layerName)) {
+		c.getQuadTree(layerName)->tOverlaps.erase(this);
+		overlapLayer.erase(layerName);
+	}
 }
 #endif // !_collisionsystem

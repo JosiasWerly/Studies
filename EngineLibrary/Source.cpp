@@ -9,11 +9,11 @@
 
 class Actor : 
 	public Class,
-	public Overlap {
+	public OverlapInstance {
 public:
-	//Boundbox b;
 	Vector pos, dir;
 	CircleShape c;
+	Color w;
 	Actor() {
 		pos = { rand() % 600 + 100, rand() % 500 + 50 };
 		dir = { rand() % 3 + 1, rand() % 3 + 1 };
@@ -22,8 +22,9 @@ public:
 		c.setFillColor(Color::Magenta);
 		pushDraw(&c);
 		
-		Overlap::bb.size = { c.getRadius()*2,  c.getRadius() *2};
-		Overlap::targetPos = &pos;
+		OverlapInstance::config(Boundbox({}, { c.getRadius() * 2, c.getRadius() * 2 }),
+			&pos);
+		
 	}
 	virtual ~Actor() {
 		popDraw(&c);
@@ -40,29 +41,27 @@ public:
 		else if (pos.y > 600)
 			pos.y = 0;
 
-		c.setFillColor(Color::Green);
+		c.setFillColor(w);
 		c.setPosition(pos);
 	}
-	void collision(Overlap *o) {
+	void collision(OverlapInstance *o) {
 		c.setFillColor(Color::Red);
 	}
-
 };
+
+
 int main() {
-	
+	e.col.addQuadTree("a", { 0, 0 }, { 400, 600 }, 2);
+	e.col.addQuadTree("b", { 200, 0 }, { 400, 600 }, 2);
+
 	Actor *a;
-	for (size_t i = 0; i < 800; i++) {
-		//Vector initPos;
-		//if (it != e.col.tQuads.end()) {
-		//	initPos = (*it)->bb.center;
-		//	it++;
-		//}
-		//else {
-		//	it = begIt;
-		//}
+	for (size_t i = 0; i < 100; i++) {
 		 a = (Actor*)(Class*)instantiate(new Actor);
-		 //a->pos = initPos - a->bb.size/2.f;
+		 a->setLayer(true, i % 2 ? "a" : "b");
+		 a->w = i % 2 ? Color::Magenta : Color::Cyan;
 	}
+
+	
 	while (true) {
 		a->pos = mousePos;
 		e.tick();
