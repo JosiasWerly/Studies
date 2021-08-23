@@ -2,218 +2,137 @@
 #define _collisionsystem
 #include "jEngine.hpp"
 
-struct Boundbox {
-	Vector pos, size, center;
-	Boundbox() {
-		center = getCenter();
-	}
-	Boundbox(Vector pos, Vector size) {
-		this->pos = pos;
-		this->size = size;
-		center = getCenter();
-	}
-	inline Vector &getCenter() {
-		return center = pos + (size / 2.f);
-	}
+typedef unsigned long TLayer;
 
-	static inline bool inBoundry(Boundbox &a, Boundbox &b) {
-		auto
-			ar = a.pos + a.size,
-			br = b.pos + b.size;
+class OverlapTarget {
+public:
+	Vector *trg = nullptr;
+	float radius = 0;
+};
+struct OverlapData{
+	TLayer layer;
+	class OverlapInstance *inst;
 
-		return a.pos.x < br.x &&
-			ar.x > b.pos.x &&
-			a.pos.y < br.y &&
-			ar.y > b.pos.y;
+	OverlapData &operator=(const OverlapData &o) {
+		this->layer = o.layer;
+		this->inst = o.inst;
+		return *this;
+	}
+	bool operator==(const OverlapData &o) const {
+		return inst == o.inst;
 	}
 };
+
 class OverlapInstance {
-	Vector *targetPos;
-	Boundbox bb;
-	set<string> overlapLayer;
-	list<OverlapInstance *> overlaping;
-
-	friend class Quad;
-	friend class QuadTree;
+	OverlapTarget _inst;
+	TLayer _layer = 0;
 public:
-	void config(Boundbox bb, Vector *pos) {
-		this->bb = bb;
-		this->targetPos = pos;
-	}
-	inline set<string> &getLayers() {
-		return overlapLayer; 
-	}
-	void setLayer(bool enable, string layerName);
+	vector<OverlapData> accOverlap, overlaping;
+	Delegate<const TLayer &, OverlapInstance *> onBeginOverlap, onEndOverlap;
 
+	OverlapInstance();
+	~OverlapInstance();
+	void setTarget(Vector *trg);
+	void setRadius(float radius);
+	void setLayer(TLayer newLayer);
 
-	inline void preProcess() {
-		if (targetPos)
-			bb.pos = *targetPos;
-		overlaping.clear();
+	inline bool isOverlapin(OverlapInstance &b) {
+		return Vector::distance(*_inst.trg, *b._inst.trg) <= _inst.radius;
 	}
-	virtual void collision(OverlapInstance *o) {
-		overlaping.push_back(o);
+	virtual void overlaped(OverlapData dt) {
+		accOverlap.push_back(dt);
 	}
+	inline void posProcess() {
+		for (size_t i = 0; i < overlaping.size(); ) {
+			auto &e = overlaping[i];
+			auto it = std::find(accOverlap.begin(), accOverlap.end(), e);
+			if (it == accOverlap.end()) {
+				overlaping.erase(overlaping.begin() + i);
+				onEndOverlap.broadcast(e.layer, e.inst);
+			}
+			else
+				i++;
+		}
+
+		for (auto &i : accOverlap){
+			auto it = std::find(overlaping.begin(), overlaping.end(), i);
+			if (it == overlaping.end()) {
+				overlaping.push_back(i);
+				onBeginOverlap.broadcast(i.layer, i.inst);
+			}
+		}
+		accOverlap.clear();
+	}
+	
+	inline const TLayer &getLayer() {	return _layer;	}
+	inline const float &getRadius() { return _inst.radius; }
+	inline Vector *getTarget() { return _inst.trg; }
 };
-class Quad {
-public:
-	set<OverlapInstance *> is;
-	Boundbox bb;
-	Quad *root, *tr, *br, *bl, *tl;
-	unsigned int subDivisions;
-	Quad(Boundbox bb, unsigned int subDivisions = 1, Quad *root = nullptr) {
-		this->subDivisions = subDivisions;
-		this->bb = bb;
-		this->root = root;
-		tr = br = bl = tl = nullptr;
-
-	}
-
-	inline Quad *newTr() {
-		return tr = new Quad({ {bb.getCenter().x, bb.pos.y}, bb.size / 2.f }, subDivisions - 1, this);
-	}
-	inline Quad *newTl() {
-		return tl = new Quad({ bb.pos, bb.size / 2.f }, subDivisions - 1, this);
-	}
-	inline Quad *newBr() {
-		return br = new Quad({ bb.getCenter(), bb.size / 2.f }, subDivisions - 1, this);
-	}
-	inline Quad *newBl() {
-		return bl = new Quad({ {bb.pos.x, bb.getCenter().y} ,  bb.size / 2.f }, subDivisions - 1, this);
-	}
-	static void build(Quad *q, set<Quad*> &totalQuads) {
-		const int sub = q->subDivisions - 1;
-		q->bb.getCenter();
-		totalQuads.insert(q);
-		if (sub >= 0) {
-			if (!q->bl) {
-				q->newBl();
-				build(q->bl, totalQuads);
-			}
-			if (!q->br) {
-				q->newBr();
-				build(q->br, totalQuads);
-			}
-			if (!q->tl) {
-				q->newTl();
-				build(q->tl, totalQuads);
-			}
-			if (!q->tr) {
-				q->newTr();
-				build(q->tr, totalQuads);
-			}
-		}
-	}
-	static bool search(Quad *q, OverlapInstance *i, set<Quad *> &qs) {
-		if (Boundbox::inBoundry(q->bb, i->bb)) {
-			if (q->subDivisions > 0) {
-				search(q->tr, i, qs);
-				search(q->bl, i, qs);
-				search(q->br, i, qs);
-				search(q->tl, i, qs);
-			}
-			else {				
-				qs.insert(q);
-			}
-			return true;
-		}
-		return false;
-	}
-};
-struct QuadTree{
-	Quad *root = nullptr;
-	set<Quad *> tQuads;
-	set<OverlapInstance *> tOverlaps;
-	Clock c;
-
-	void buildTree(Vector pos, Vector size, unsigned int subDivisions){
-		for (auto &q : tQuads)
-			delete q;
-		tQuads.clear();
-
-		root = new Quad({ pos, size }, subDivisions);
-		Quad::build(root, tQuads);
-	}
-	inline void processTree() {
-		int col = 0;
-		c.restart();
-		map<Quad *, set<OverlapInstance *>> os;
-		for (auto &instA : tOverlaps) {
-			instA->preProcess();
-			set<Quad *> containedQuads;
-			if (Quad::search(root, instA, containedQuads)) {
-				if (containedQuads.size() == 1) {
-					auto &quad = *containedQuads.begin();
-					for (auto &instB : quad->is) {
-						if (Boundbox::inBoundry(instA->bb, instB->bb)) {
-							instA->collision(instB);
-							instB->collision(instA);
-							col++;
-						}
-					}
-					quad->is.insert(instA);
-				}
-				else {
-					set<OverlapInstance *> checked;
-					for (auto &quad : containedQuads) {
-						for (auto &instB : quad->is) {
-							if (Boundbox::inBoundry(instA->bb, instB->bb) && !checked.count(instB)) {
-								instA->collision(instB);
-								instB->collision(instA);
-								checked.insert(instB);
-								col++;
-							}
-						}
-						quad->is.insert(instA);
-					}
-				}
-			}
-		}
 
 
-		for (auto &q : tQuads) {
-			if (q->subDivisions == 0)
-				drawDebugQuad(q->bb.pos, q->bb.size, Color(100, 0, 0, 50));
-			q->is.clear();
-		}
 
-		cout << c.getElapsedTime().asMilliseconds() << " " << col << endl;
-	}
-};
 class Collision :
 	public Singleton<Collision>{
 public:
-	map<string, QuadTree *> quadTrees;
+	list<OverlapInstance *> toverlaps;
+	map<TLayer, vector<OverlapInstance *>> overlaps;
 
 	Collision() {
-	}
-
-	void addQuadTree(string profile, Vector pos, Vector size, unsigned int subDivisions) {
-		QuadTree *qt = new QuadTree;
-		qt->buildTree(pos, size, subDivisions);
-		quadTrees[profile] = qt;
-	}
-	QuadTree *getQuadTree(string profile) {
-		if (quadTrees.count(profile)) {
-			return quadTrees[profile];
-		}
-		return nullptr;
+		size_t sz = sizeof(TLayer) * 8;
+		for (size_t i = 0; i < sz; i++)
+			overlaps[1 << i] = {};
 	}
 	void tick() {
-		for (auto &q : quadTrees)
-			q.second->processTree();
+		for (auto &k : overlaps){
+			auto &ar = k.second;
+			auto sz = ar.size();
+			for (size_t i = 0; i < sz; i++){
+				auto a = ar[i];
+				for (size_t j = i+1; j < sz; j++){
+					auto b = ar[j];
+					if (a->isOverlapin(*b))
+						a->overlaped({ k.first, b });
+					if (b->isOverlapin(*a))
+						b->overlaped({ k.first, a });
+				}
+			}
+		}
+		for (auto &t : toverlaps)
+			t->posProcess();
 	}
 };
-void OverlapInstance::setLayer(bool enable, string layerName) {
-	auto &c = Collision::instance();
-	if (enable && !overlapLayer.count(layerName)) {
-		c.getQuadTree(layerName)->tOverlaps.insert(this);
-		overlapLayer.insert(layerName);
 
-	}
-	else if (overlapLayer.count(layerName)) {
-		c.getQuadTree(layerName)->tOverlaps.erase(this);
-		overlapLayer.erase(layerName);
-	}
+OverlapInstance::OverlapInstance() {
+	Collision::instance().toverlaps.push_back(this);
 }
+OverlapInstance::~OverlapInstance() {
+	Collision::instance().toverlaps.remove(this);
+	setLayer(0);
+}
+void OverlapInstance::setTarget(Vector *trg) {
+	_inst.trg = trg;
+}
+void OverlapInstance::setLayer(TLayer newLayer) {
+	auto &col = Collision::instance();
+	size_t sz = sizeof(TLayer) * 8;
+	for (size_t i = 0; i < sz; i++) {
+		auto b = 1 << i;
+		auto lb = (newLayer & b);
+		if ((_layer & b) != lb) {
+			if (lb == 0) {
+				auto &ar = col.overlaps[b];
+				auto it = std::find(ar.begin(), ar.end(), this);
+				if (it != ar.end())
+					col.overlaps[b].erase(it);
+			}
+			else 
+				col.overlaps[b].push_back(this);
+		}
+	}
+	_layer = newLayer;
+}
+void OverlapInstance::setRadius(float radius) {
+	_inst.radius = radius;
+}
+
 #endif // !_collisionsystem

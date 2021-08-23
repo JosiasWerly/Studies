@@ -132,21 +132,16 @@ public:
 };
 
 
+struct Data{
+	void *ptr = nullptr;
+	unsigned int refCount = 0;
+};
 template<class T>class Var {
 protected:
 	friend class Var;
-	template<class t>struct TData {
-	public:
-		unsigned int refCount = 1;
-		t *val = nullptr;
-		~TData() {
-			delete val;
-			val = 0;
-		}
-	};
-	typename typedef TData<T> Data;
 	
 	Data *dt = nullptr;
+	T **ptr = nullptr;
 
 	inline void _unRef() {
 		if (--dt->refCount == 0) {
@@ -154,47 +149,122 @@ protected:
 			dt = nullptr;
 		}
 	}
-	inline void _assing(Data *o) {
-		_unRef();
+	inline void _setRef(Data *o) {
 		dt = o;
+		ptr = (T **)&dt->ptr;
 		dt->refCount++;
+	}
+	inline void _changeRef(Data *o) {
+		_unRef();
+		_setRef(o);
+	}
+
+	Var(Data *d, bool) {
+		_setRef(d);
 	}
 public:
 	inline unsigned int refs() {
 		return dt ? dt->refCount : 0;
 	}
+	inline void free() {
+		delete ptr;
+		dt->ptr = nullptr;
+	}
+
+	Var(T *init = nullptr) {
+		_setRef(new Data{ init });
+	}
+	Var(const Var &cpy) {
+		_setRef(cpy.dt);
+	}
+	Var(Var &&cpy) {
+		_setRef(cpy.dt);
+	}
 	~Var() {
 		_unRef();
 	}
-	Var(const Var &cpy) {
-		this->dt = cpy.dt;
-		this->dt->refCount++;
-	}
 	Var &operator=(Var &o) {
-		_assing(o.dt);
+		_changeRef(o.dt);
 		return *this;
 	}
+	Var &operator=(Var o) {
+		_changeRef(o.dt);
+		return *this;
+	}
+
+
 	bool operator==(const Var &v) const {
 		return dt == v.dt;
 	}
-
-	
-	Var(T *init = nullptr) {
-		dt = new Data;
-		dt->val = init;
+	template<class t> Var<t> as() {
+		return Var<t>(dt, 1);
 	}
 
-	T *operator=(T *v) {		
-		return dt->val = v;
-	}
-	operator T *() {
-		return dt->val;
+	T *&operator*() {
+		return *ptr;
 	}
 	T *operator->() {
-		return dt->val;
+		return *ptr;
 	}
 
+
 };
+
+
+
+
+template<class ...TArgs>
+struct IBind{
+protected:
+	IBind() {
+	}
+public:	
+	virtual void call(TArgs... args) {
+	}
+};
+
+template<class ...TArgs>
+struct Fnx : IBind <TArgs...> {
+public:
+	typedef void (*TFnx)(TArgs...);
+	TFnx fnx;
+	Fnx(TFnx fnx) :
+		fnx(fnx) {
+	}
+	void call(TArgs... args) override {
+		fnx(args...);
+	}
+};
+
+template<class TObj, class ...TArgs>
+struct MFnx : public IBind <TArgs...>{
+	typedef void (TObj::*TMFnx)(TArgs...);
+
+	TObj *obj;
+	TMFnx mfnx;
+	MFnx(TObj *obj, TMFnx mfnx) :
+		obj(obj),
+		mfnx(mfnx){
+	}
+	void call(TArgs... args) override{
+		(obj->*mfnx)(args...);
+	}
+};
+
+template<class ...TArgs>
+class Delegate{
+	typedef IBind<TArgs...> TFnx;
+	list<TFnx *> binds;
+public:
+	void bind(TFnx *fn) {
+		binds.push_back(fn);
+	}
+	void broadcast(TArgs ...args) {
+		for (auto b : binds)
+			b->call(args...);
+	}
+};
+
 
 
 #endif // !_utils
